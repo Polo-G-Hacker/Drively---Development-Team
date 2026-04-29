@@ -417,7 +417,7 @@ Drive.ly Backend Development Team
 
 ## 📞 Support
 
-For support, email backend@drively.africa or join our Discord community.
+For support, email adrienkemdem@gmail.com or join our Discord community.
 
 ---
 
