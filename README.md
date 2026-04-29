@@ -1,4 +1,4 @@
-# Drive.ly - Move Smart Across Africa
+# Drive.ly - Move Smart Across Africa and abroad
 
 A modern ride-hailing application built with Expo (React Native) for mobile and Node.js/Express for the backend. Drive.ly connects passengers with drivers across Africa, offering car and bike ride options, community-based routes, and real-time tracking.
 
