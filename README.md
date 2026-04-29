@@ -216,11 +216,11 @@ This project is licensed under the MIT License.
 - **Development Team**: Drive.ly Development Team
 - **Project Lead**: Polo-G-Hacker
 
-## 📞 Contact
+ 📞 Contact
 
 For questions or support, please open an issue on GitHub or contact the development team.
 
-## 🙏 Acknowledgments
+ 🙏 Acknowledgments
 
 - Expo team for the amazing development platform
 - React Native community
@@ -228,4 +228,4 @@ For questions or support, please open an issue on GitHub or contact the developm
 
 ---
 
-**Built by 🅿️olo G with heart for Africa**
+Built by 🅿️olo G with heart for Africa**
