@@ -3,7 +3,7 @@ const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
 const cors = require('cors');
-const connectDB = require('./config/database');
+const { connectDB } = require('./config/database');
 const authRoutes = require('./routes/auth');
 const rideRoutes = require('./routes/rides');
 const driverRoutes = require('./routes/drivers');
@@ -19,9 +19,6 @@ const io = socketIO(server, {
     methods: ["GET", "POST"]
   }
 });
-
-// Connect to database
-connectDB();
 
 // Middleware
 app.use(cors());
@@ -46,9 +43,20 @@ initializeSocket(io);
 const PORT = process.env.PORT || 3000;
 const SOCKET_PORT = process.env.SOCKET_PORT || 3001;
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(` Drive.ly API server running on port ${PORT}`);
-  console.log(` Socket.IO server ready for connections on port ${SOCKET_PORT}`);
-});
+async function startServer() {
+  try {
+    await connectDB();
+
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(` Drive.ly API server running on port ${PORT}`);
+      console.log(` Socket.IO server ready for connections on port ${SOCKET_PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 module.exports = { app, server, io };

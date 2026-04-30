@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_CONFIG, API_ENDPOINTS } from '../../config/api-config';
+import { API_CONFIG, API_ENDPOINTS, fetchWithTimeout } from '../../config/api-config';
 import type { ApiResponse, User, Ride, DriverProfile, Community, Transaction, PaymentData } from '../../types';
 
 /**
@@ -18,7 +18,7 @@ async function apiCall<T>(
   try {
     const token = await AsyncStorage.getItem('token');
     
-    const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, {
+    const response = await fetchWithTimeout(`${API_CONFIG.BASE_URL}${endpoint}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -27,7 +27,7 @@ async function apiCall<T>(
       },
     });
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
 
     if (response.ok) {
       return { success: true, data };
@@ -36,7 +36,11 @@ async function apiCall<T>(
     }
   } catch (error) {
     console.error('API call error:', error);
-    return { success: false, error: (error as Error).message };
+    const message =
+      error instanceof Error && error.name === 'AbortError'
+        ? `Request timed out. Check that the backend is running at ${API_CONFIG.BASE_URL}.`
+        : (error as Error).message;
+    return { success: false, error: message };
   }
 }
 

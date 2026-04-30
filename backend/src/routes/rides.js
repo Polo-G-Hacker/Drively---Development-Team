@@ -1,264 +1,344 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const Ride = require('../models/Ride');
+
+const { withTransaction } = require('../config/database');
 const Driver = require('../models/Driver');
+const Ride = require('../models/Ride');
 const { auth, driverAuth, passengerAuth } = require('../middleware/auth');
-const { matchRoute, createRide } = require('../services/routeMatchingService');
+const { calculateDistance, calculateFare, createRide, matchRoute } = require('../services/routeMatchingService');
 const { getIO } = require('../services/socketService');
 
 const router = express.Router();
 
-// Search for rides (passenger)
+function parseCoordinatePair(value) {
+  if (Array.isArray(value) && value.length >= 2) {
+    return [Number(value[0]), Number(value[1])];
+  }
+
+  if (value?.coordinates && Array.isArray(value.coordinates) && value.coordinates.length >= 2) {
+    return [Number(value.coordinates[0]), Number(value.coordinates[1])];
+  }
+
+  return null;
+}
+
 router.get('/search', passengerAuth, async (req, res) => {
   try {
-    const { origin, destination, originLat, originLng, destLat, destLng } = req.query;
+    const originCoords =
+      req.query.originLng !== undefined && req.query.originLat !== undefined
+        ? [Number(req.query.originLng), Number(req.query.originLat)]
+        : null;
+    const destinationCoords =
+      req.query.destLng !== undefined && req.query.destLat !== undefined
+        ? [Number(req.query.destLng), Number(req.query.destLat)]
+        : null;
 
     const matches = await matchRoute({
-      originCoords: [parseFloat(originLng), parseFloat(originLat)],
-      destinationCoords: [parseFloat(destLng), parseFloat(destLat)],
-      maxDetour: 2000
+      originCoords,
+      destinationCoords,
+      maxDetour: 2000,
     });
 
-    res.json({ matches });
+    return res.json({ matches });
   } catch (error) {
     console.error('Search rides error:', error);
-    res.status(500).json({ error: 'Failed to search for rides' });
+    return res.status(500).json({ error: 'Failed to search for rides' });
   }
 });
 
-// Request a ride (passenger)
-router.post('/request', passengerAuth, [
-  body('pickupLocation').notEmpty(),
-  body('dropoffLocation').notEmpty(),
-  body('pickupAddress').notEmpty(),
-  body('dropoffAddress').notEmpty()
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { pickupLocation, dropoffLocation, pickupAddress, dropoffAddress, driverId } = req.body;
-
-    const driver = await Driver.findById(driverId).populate('user');
-    if (!driver) {
-      return res.status(404).json({ error: 'Driver not found' });
-    }
-
-    // Calculate fare
-    const { calculateFare, calculateDistance } = require('../services/routeMatchingService');
-    const distance = calculateDistance(
-      pickupLocation[1], pickupLocation[0],
-      dropoffLocation[1], dropoffLocation[0]
-    );
-    const duration = distance / 30; // Assume 30 m/s
-    const fare = calculateFare(distance, duration);
-
-    // Notify driver via Socket.IO
-    const io = getIO();
-    io.to(`user_${driver.user._id}`).emit('ride_request', {
-      passengerId: req.user._id,
-      passengerName: req.user.name,
-      pickupAddress,
-      dropoffAddress,
-      fare,
-      estimatedArrival: Math.round(duration / 60)
-    });
-
-    res.json({
-      message: 'Ride request sent to driver',
-      fare,
-      estimatedArrival: Math.round(duration / 60)
-    });
-  } catch (error) {
-    console.error('Request ride error:', error);
-    res.status(500).json({ error: 'Failed to request ride' });
-  }
-});
-
-// Accept ride (driver)
-router.post('/accept', driverAuth, [
-  body('rideId').notEmpty(),
-  body('passengerId').notEmpty()
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { rideId, passengerId, pickupLocation, dropoffLocation, pickupAddress, dropoffAddress, fare, distance, duration } = req.body;
-
-    const driver = await Driver.findOne({ user: req.user._id });
-    if (!driver) {
-      return res.status(404).json({ error: 'Driver profile not found' });
-    }
-
-    // Check if driver has an active ride
-    if (driver.currentRide) {
-      const existingRide = await Ride.findById(driver.currentRide);
-      if (existingRide && existingRide.status === 'active') {
-        return res.status(400).json({ error: 'Driver already has an active ride' });
-      }
-    }
-
-    // Create or update ride
-    let ride;
-    if (rideId && rideId !== 'new') {
-      ride = await Ride.findById(rideId);
-      if (!ride) {
-        return res.status(404).json({ error: 'Ride not found' });
+router.post(
+  '/request',
+  passengerAuth,
+  [
+    body('pickupLocation').notEmpty(),
+    body('dropoffLocation').notEmpty(),
+    body('pickupAddress').optional().isString(),
+    body('dropoffAddress').optional().isString(),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
       }
 
-      ride.passengers.push({
-        user: passengerId,
-        pickupLocation: { type: 'Point', coordinates: pickupLocation },
-        dropoffLocation: { type: 'Point', coordinates: dropoffLocation },
-        pickupAddress,
-        dropoffAddress,
+      const pickupLocation = parseCoordinatePair(req.body.pickupLocation);
+      const dropoffLocation = parseCoordinatePair(req.body.dropoffLocation);
+      const pickupAddress = req.body.pickupAddress || 'Pickup';
+      const dropoffAddress = req.body.dropoffAddress || 'Dropoff';
+      const driverId = req.body.driverId;
+
+      if (!pickupLocation || !dropoffLocation || !driverId) {
+        return res.status(400).json({ error: 'Pickup, dropoff, and driverId are required' });
+      }
+
+      const driver = await Driver.findById(driverId, { includeUser: true });
+      if (!driver) {
+        return res.status(404).json({ error: 'Driver not found' });
+      }
+
+      const distance = calculateDistance(
+        pickupLocation[1],
+        pickupLocation[0],
+        dropoffLocation[1],
+        dropoffLocation[0]
+      );
+      const duration = distance / 30;
+      const fare = calculateFare(distance, duration);
+
+      getIO()
+        .to(`user_${driver.user?._id || driver.user?.id || driver.user}`)
+        .emit('ride_request', {
+          passengerId: req.user.id,
+          passengerName: req.user.name,
+          pickupAddress,
+          dropoffAddress,
+          fare,
+          estimatedArrival: Math.round(duration / 60),
+        });
+
+      return res.json({
+        message: 'Ride request sent to driver',
         fare,
-        distance,
-        duration,
-        status: 'accepted'
+        estimatedArrival: Math.round(duration / 60),
+      });
+    } catch (error) {
+      console.error('Request ride error:', error);
+      return res.status(500).json({ error: 'Failed to request ride' });
+    }
+  }
+);
+
+router.post(
+  '/accept',
+  driverAuth,
+  [body('rideId').notEmpty(), body('passengerId').notEmpty()],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const result = await withTransaction(async (connection) => {
+        const driver = await Driver.findByUserId(req.user.id, {}, connection);
+        if (!driver) {
+          return { status: 404, body: { error: 'Driver profile not found' } };
+        }
+
+        if (driver.currentRide) {
+          const activeRide = await Ride.findById(driver.currentRide, {}, connection);
+          if (activeRide && activeRide.status === 'active') {
+            return { status: 400, body: { error: 'Driver already has an active ride' } };
+          }
+        }
+
+        const pickupLocation = parseCoordinatePair(req.body.pickupLocation);
+        const dropoffLocation = parseCoordinatePair(req.body.dropoffLocation);
+        const fare = Number(req.body.fare || 0);
+        const distance = Number(req.body.distance || 0);
+        const duration = Number(req.body.duration || 0);
+        const commissionRate = Number(process.env.COMMISSION_RATE || 15);
+
+        let ride;
+        let passengerCount;
+
+        if (req.body.rideId && req.body.rideId !== 'new') {
+          const existingRide = await Ride.findById(req.body.rideId, { includePassengers: true }, connection);
+          if (!existingRide) {
+            return { status: 404, body: { error: 'Ride not found' } };
+          }
+
+          await Ride.addPassenger(
+            existingRide.id,
+            {
+              userId: req.body.passengerId,
+              pickupLocation: { coordinates: pickupLocation || [0, 0] },
+              dropoffLocation: { coordinates: dropoffLocation || [0, 0] },
+              pickupAddress: req.body.pickupAddress || 'Pickup',
+              dropoffAddress: req.body.dropoffAddress || 'Dropoff',
+              fare,
+              distance,
+              duration,
+              status: 'accepted',
+            },
+            connection
+          );
+
+          const passengers = await Ride.getPassengersForRide(existingRide.id, { includeUsers: true }, connection);
+          passengerCount = passengers.length;
+          const totalFare = existingRide.totalFare + fare;
+
+          ride = await Ride.updateById(
+            existingRide.id,
+            {
+              status: 'active',
+              totalFare,
+              commission: totalFare * (commissionRate / 100),
+              driverEarnings: totalFare * (1 - commissionRate / 100),
+              startedAt: existingRide.startedAt || new Date(),
+            },
+            connection
+          );
+        } else {
+          ride = await createRide(
+            driver.id,
+            [
+              {
+                userId: req.body.passengerId,
+                pickupLocation: { coordinates: pickupLocation || [0, 0] },
+                dropoffLocation: { coordinates: dropoffLocation || [0, 0] },
+                pickupAddress: req.body.pickupAddress || 'Pickup',
+                dropoffAddress: req.body.dropoffAddress || 'Dropoff',
+                fare,
+                distance,
+                duration,
+                status: 'accepted',
+              },
+            ],
+            connection
+          );
+          passengerCount = ride.passengers.length;
+        }
+
+        const updatedDriver = await Driver.updateById(
+          driver.id,
+          {
+            currentRide: ride.id,
+            currentPassengerCount: passengerCount,
+            isAvailable: false,
+          },
+          connection
+        );
+
+        return {
+          status: 200,
+          body: {
+            message: 'Ride accepted successfully',
+            rideId: ride.id,
+            passengerCount,
+          },
+          meta: { driver: updatedDriver, ride },
+        };
       });
 
-      ride.totalFare += fare;
-      const commissionRate = parseFloat(process.env.COMMISSION_RATE) || 15;
-      ride.commission = ride.totalFare * (commissionRate / 100);
-      ride.driverEarnings = ride.totalFare * (1 - commissionRate / 100);
-    } else {
-      ride = await createRide(driver._id, [{
-        userId: passengerId,
-        pickupLocation: { type: 'Point', coordinates: pickupLocation },
-        dropoffLocation: { type: 'Point', coordinates: dropoffLocation },
-        pickupAddress,
-        dropoffAddress,
-        fare,
-        distance,
-        duration
-      }]);
+      if (result.status !== 200) {
+        return res.status(result.status).json(result.body);
+      }
+
+      const { driver, ride } = result.meta;
+      getIO()
+        .to(`user_${req.body.passengerId}`)
+        .emit('ride_accepted', {
+          rideId: ride.id,
+          driverId: driver.id,
+          driverName: driver.user?.name || driver.vehicleModel,
+          vehiclePlate: driver.vehiclePlateNumber,
+          vehicleColor: driver.vehicleColor,
+          rating: driver.rating,
+        });
+
+      return res.json(result.body);
+    } catch (error) {
+      console.error('Accept ride error:', error);
+      return res.status(500).json({ error: 'Failed to accept ride' });
     }
-
-    await ride.save();
-
-    // Update driver
-    driver.currentRide = ride._id;
-    driver.currentPassengerCount = ride.passengers.length;
-    driver.isAvailable = false;
-    await driver.save();
-
-    // Notify passenger via Socket.IO
-    const io = getIO();
-    io.to(`user_${passengerId}`).emit('ride_accepted', {
-      rideId: ride._id,
-      driverId: driver._id,
-      driverName: driver.vehicleModel,
-      vehiclePlate: driver.vehiclePlateNumber,
-      vehicleColor: driver.vehicleColor,
-      rating: driver.rating
-    });
-
-    res.json({
-      message: 'Ride accepted successfully',
-      rideId: ride._id,
-      passengerCount: ride.passengers.length
-    });
-  } catch (error) {
-    console.error('Accept ride error:', error);
-    res.status(500).json({ error: 'Failed to accept ride' });
   }
-});
+);
 
-// Get ride details
-router.get('/:rideId', auth, async (req, res) => {
-  try {
-    const ride = await Ride.findById(req.params.rideId)
-      .populate('driver')
-      .populate('passengers.user');
-
-    if (!ride) {
-      return res.status(404).json({ error: 'Ride not found' });
-    }
-
-    res.json({ ride });
-  } catch (error) {
-    console.error('Get ride error:', error);
-    res.status(500).json({ error: 'Failed to fetch ride details' });
-  }
-});
-
-// Update ride status
-router.patch('/:rideId/status', auth, [
-  body('status').isIn(['searching', 'active', 'completed', 'cancelled'])
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { status } = req.body;
-    const ride = await Ride.findById(req.params.rideId);
-
-    if (!ride) {
-      return res.status(404).json({ error: 'Ride not found' });
-    }
-
-    ride.status = status;
-    
-    if (status === 'completed') {
-      ride.completedAt = new Date();
-      
-      // Update driver stats
-      const driver = await Driver.findById(ride.driver);
-      driver.totalEarnings += ride.driverEarnings;
-      driver.totalRides += 1;
-      driver.isAvailable = true;
-      driver.currentRide = null;
-      driver.currentPassengerCount = 0;
-      await driver.save();
-    } else if (status === 'cancelled') {
-      const driver = await Driver.findById(ride.driver);
-      driver.isAvailable = true;
-      driver.currentRide = null;
-      driver.currentPassengerCount = 0;
-      await driver.save();
-    }
-
-    await ride.save();
-
-    // Notify relevant users via Socket.IO
-    const io = getIO();
-    ride.passengers.forEach(passenger => {
-      io.to(`user_${passenger.user}`).emit('ride_status_updated', {
-        rideId: ride._id,
-        status
-      });
-    });
-
-    res.json({ message: 'Ride status updated', ride });
-  } catch (error) {
-    console.error('Update ride status error:', error);
-    res.status(500).json({ error: 'Failed to update ride status' });
-  }
-});
-
-// Get user's ride history
 router.get('/history/user', auth, async (req, res) => {
   try {
-    const rides = await Ride.find({
-      'passengers.user': req.user._id
-    })
-      .populate('driver')
-      .populate('passengers.user')
-      .sort({ createdAt: -1 })
-      .limit(20);
-
-    res.json({ rides });
+    const rides = await Ride.findHistoryForUser(req.user.id);
+    return res.json({ rides });
   } catch (error) {
     console.error('Get ride history error:', error);
-    res.status(500).json({ error: 'Failed to fetch ride history' });
+    return res.status(500).json({ error: 'Failed to fetch ride history' });
+  }
+});
+
+router.get('/:rideId', auth, async (req, res) => {
+  try {
+    const ride = await Ride.findById(req.params.rideId, {
+      includeDriver: true,
+      includePassengers: true,
+      includePassengerUsers: true,
+    });
+
+    if (!ride) {
+      return res.status(404).json({ error: 'Ride not found' });
+    }
+
+    return res.json({ ride });
+  } catch (error) {
+    console.error('Get ride error:', error);
+    return res.status(500).json({ error: 'Failed to fetch ride details' });
+  }
+});
+
+router.patch('/:rideId/status', auth, [body('status').isIn(['searching', 'active', 'completed', 'cancelled'])], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const result = await withTransaction(async (connection) => {
+      const ride = await Ride.findById(req.params.rideId, { includePassengers: true, includePassengerUsers: true }, connection);
+      if (!ride) {
+        return { status: 404, body: { error: 'Ride not found' } };
+      }
+
+      const updates = { status: req.body.status };
+      if (req.body.status === 'completed') {
+        updates.completedAt = new Date();
+      }
+
+      const updatedRide = await Ride.updateById(ride.id, updates, connection);
+      const driver = await Driver.findById(ride.driver._id || ride.driver.id || ride.driver, {}, connection);
+
+      if (driver && req.body.status === 'completed') {
+        await Driver.updateById(
+          driver.id,
+          {
+            totalEarnings: driver.totalEarnings + updatedRide.driverEarnings,
+            totalRides: driver.totalRides + 1,
+            currentRide: null,
+            currentPassengerCount: 0,
+            isAvailable: true,
+          },
+          connection
+        );
+      } else if (driver && req.body.status === 'cancelled') {
+        await Driver.updateById(
+          driver.id,
+          {
+            currentRide: null,
+            currentPassengerCount: 0,
+            isAvailable: true,
+          },
+          connection
+        );
+      }
+
+      return { status: 200, body: { message: 'Ride status updated', ride: updatedRide } };
+    });
+
+    if (result.status !== 200) {
+      return res.status(result.status).json(result.body);
+    }
+
+    result.body.ride.passengers.forEach((passenger) => {
+      const passengerId = passenger.user?._id || passenger.user?.id || passenger.user;
+      getIO().to(`user_${passengerId}`).emit('ride_status_updated', {
+        rideId: result.body.ride.id,
+        status: req.body.status,
+      });
+    });
+
+    return res.json(result.body);
+  } catch (error) {
+    console.error('Update ride status error:', error);
+    return res.status(500).json({ error: 'Failed to update ride status' });
   }
 });
 

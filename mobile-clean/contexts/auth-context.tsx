@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_CONFIG, API_ENDPOINTS } from '../config/api-config';
+import { API_CONFIG, API_ENDPOINTS, fetchWithTimeout } from '../config/api-config';
 import type { User, AuthResponse, ApiResponse } from '../types';
 
 interface AuthContextType {
@@ -13,6 +13,14 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+async function parseResponseBody(response: Response) {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -44,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const url = `${API_CONFIG.BASE_URL}${API_ENDPOINTS.AUTH.LOGIN}`;
       console.log('Logging in to:', url);
       
-      const response = await fetch(url, {
+      const response = await fetchWithTimeout(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ phoneNumber, password }),
       });
 
-      const data = await response.json();
+      const data = await parseResponseBody(response);
       console.log('Login response:', data);
 
       if (response.ok) {
@@ -66,7 +74,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Login error:', error);
-      return { success: false, error: 'Login failed: ' + (error as Error).message };
+      const message =
+        error instanceof Error && error.name === 'AbortError'
+          ? `Login request timed out. Check that the backend is running at ${API_CONFIG.BASE_URL}.`
+          : 'Login failed: ' + (error as Error).message;
+      return { success: false, error: message };
     }
   };
 
@@ -75,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const url = `${API_CONFIG.BASE_URL}${API_ENDPOINTS.AUTH.REGISTER}`;
       console.log('Registering to:', url);
       
-      const response = await fetch(url, {
+      const response = await fetchWithTimeout(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -83,7 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ phoneNumber, password, name, role }),
       });
 
-      const data = await response.json();
+      const data = await parseResponseBody(response);
       console.log('Register response:', data);
 
       if (response.ok) {
@@ -94,13 +106,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Registration error:', error);
-      return { success: false, error: 'Registration failed: ' + (error as Error).message };
+      const message =
+        error instanceof Error && error.name === 'AbortError'
+          ? `Registration request timed out. Check that the backend is running at ${API_CONFIG.BASE_URL}.`
+          : 'Registration failed: ' + (error as Error).message;
+      return { success: false, error: message };
     }
   };
 
   const logout = async () => {
     try {
-      await fetch(`${API_CONFIG.BASE_URL}${API_ENDPOINTS.AUTH.LOGOUT}`, {
+      await fetchWithTimeout(`${API_CONFIG.BASE_URL}${API_ENDPOINTS.AUTH.LOGOUT}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

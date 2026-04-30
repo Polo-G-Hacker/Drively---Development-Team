@@ -1,16 +1,12 @@
 /**
  * Socket.IO Configuration
- * Centralized configuration for Socket.IO connection settings
- * 
- * Note: For Android Emulator, use 10.0.2.2 instead of localhost
- * For iOS Simulator, localhost works fine
- * For physical device, use your computer's actual IP address
+ * Follows the same host resolution rules as the REST API.
  */
 
+import { resolveServiceUrl } from './api-config';
+
 export const SOCKET_CONFIG = {
-  // URL: 'http://10.0.2.2:3001', // Android Emulator
-  // URL: 'http://localhost:3001', // iOS Simulator
-  URL: 'http://192.168.100.62:3001', // Physical Device
+  URL: process.env.EXPO_PUBLIC_SOCKET_URL?.trim()?.replace(/\/+$/, '') || resolveServiceUrl(3001),
   TRANSPORTS: ['websocket'],
   RECONNECTION: true,
   RECONNECTION_ATTEMPTS: 5,

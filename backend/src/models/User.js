@@ -1,96 +1,113 @@
-const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-const userSchema = new mongoose.Schema({
-  phoneNumber: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true
-  },
-  password: {
-    type: String,
-    required: true,
-    minlength: 6
-  },
-  name: {
-    type: String,
-    required: true
-  },
-  role: {
-    type: String,
-    enum: ['driver', 'passenger', 'admin'],
-    required: true
-  },
-  profileImage: {
-    type: String
-  },
-  rating: {
-    type: Number,
-    default: 0,
-    min: 0,
-    max: 5
-  },
-  totalRatings: {
-    type: Number,
-    default: 0
-  },
-  isVerified: {
-    type: Boolean,
-    default: false
-  },
-  isOnline: {
-    type: Boolean,
-    default: false
-  },
-  currentLocation: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      default: 'Point'
-    },
-    coordinates: {
-      type: [Number],
-      default: [0, 0]
-    }
-  },
-  communities: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Community'
-  }],
-  wallet: {
-    balance: {
-      type: Number,
-      default: 0
-    },
-    currency: {
-      type: String,
-      default: 'XAF'
-    }
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+const { query } = require('../config/database');
+const { buildPoint, toBoolean, toId, toNumber } = require('./helpers');
+
+function mapUserRow(row, { includePassword = false, communities = null } = {}) {
+  if (!row) {
+    return null;
   }
-});
 
-// Index for geospatial queries
-userSchema.index({ currentLocation: '2dsphere' });
+  const user = {
+    _id: toId(row.id),
+    id: toId(row.id),
+    phoneNumber: row.phone_number,
+    name: row.name,
+    role: row.role,
+    email: row.email,
+    profileImage: row.profile_image,
+    rating: toNumber(row.rating),
+    totalRatings: toNumber(row.total_ratings),
+    isVerified: toBoolean(row.is_verified),
+    isOnline: toBoolean(row.is_online),
+    currentLocation: buildPoint(row.current_longitude, row.current_latitude) || {
+      type: 'Point',
+      coordinates: [0, 0],
+    },
+    wallet: {
+      balance: toNumber(row.wallet_balance),
+      currency: row.wallet_currency || 'XAF',
+    },
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 
-// Hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 10);
-  next();
-});
+  if (communities) {
+    user.communities = communities;
+  }
 
-// Method to compare password
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+  if (includePassword) {
+    user.password = row.password_hash;
+  }
+
+  return user;
+}
+
+async function findByPhoneNumber(phoneNumber, options = {}, connection = null) {
+  const rows = await query('SELECT * FROM users WHERE phone_number = ? LIMIT 1', [phoneNumber], connection);
+  return mapUserRow(rows[0], options);
+}
+
+async function findById(userId, options = {}, connection = null) {
+  const rows = await query('SELECT * FROM users WHERE id = ? LIMIT 1', [userId], connection);
+  return mapUserRow(rows[0], options);
+}
+
+async function create({ phoneNumber, password, name, role, email = null }, connection = null) {
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  const result = await query(
+    `
+      INSERT INTO users (phone_number, password_hash, name, role, email)
+      VALUES (?, ?, ?, ?, ?)
+    `,
+    [phoneNumber, passwordHash, name, role, email],
+    connection
+  );
+
+  return findById(result.insertId, {}, connection);
+}
+
+async function comparePassword(user, candidatePassword) {
+  if (!user?.password) {
+    return false;
+  }
+
+  return bcrypt.compare(candidatePassword, user.password);
+}
+
+async function updateOnlineStatus(userId, isOnline, connection = null) {
+  await query('UPDATE users SET is_online = ? WHERE id = ?', [isOnline ? 1 : 0, userId], connection);
+  return findById(userId, {}, connection);
+}
+
+async function updateLocation(userId, { latitude, longitude }, connection = null) {
+  await query(
+    'UPDATE users SET current_latitude = ?, current_longitude = ? WHERE id = ?',
+    [latitude, longitude, userId],
+    connection
+  );
+
+  return findById(userId, {}, connection);
+}
+
+async function adjustWalletBalance(userId, amountDelta, connection = null) {
+  await query(
+    'UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?',
+    [amountDelta, userId],
+    connection
+  );
+
+  return findById(userId, {}, connection);
+}
+
+module.exports = {
+  adjustWalletBalance,
+  comparePassword,
+  create,
+  findById,
+  findByPhoneNumber,
+  mapUserRow,
+  updateLocation,
+  updateOnlineStatus,
 };
-
-module.exports = mongoose.model('User', userSchema);

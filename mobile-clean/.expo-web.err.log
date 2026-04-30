@@ -1,0 +1,51 @@
+The following packages should be updated for best compatibility with the installed expo version:
+  @react-native-async-storage/async-storage@1.24.0 - expected version: 2.2.0
+  expo-linear-gradient@13.0.2 - expected version: ~15.0.8
+  expo-location@17.0.1 - expected version: ~19.0.8
+  react-native-maps@1.18.0 - expected version: 1.20.1
+  react-native-svg@15.8.0 - expected version: 15.12.1
+Your project may not work correctly until you install the expected versions of the packages.
+Error: Cannot pipe to a closed or destroyed stream
+    at pipelineImpl (node:internal/streams/pipeline:264:15)
+    at node:stream/promises:31:5
+    at new Promise (<anonymous>)
+    at pipeline (node:stream/promises:20:10)
+    at respond (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\expo-server\src\vendor\http.ts:138:19)
+    at C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\expo-server\src\vendor\http.ts:68:13
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+"shadow*" style props are deprecated. Use "boxShadow".
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+  console.warn (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\expo\node_modules\@expo\cli\src\start\server\serverLogLikeMetro.ts:161:21)
+  warnOnce (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-native-web\dist\modules\warnOnce\index.js:24:13)
+  createDOMProps (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-native-web\dist\modules\createDOMProps\index.js:805:13)
+  createElement (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-native-web\dist\exports\createElement\index.js:23:32)
+  Component (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-native-web\dist\exports\View\index.js:111:23)
+  Object.callComponentInDEV [as react-stack-bottom-frame] (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:8970:18)
+  renderWithHooks (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:4699:19)
+  run (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5539:39)
+  retryNode (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5899:31)
+  renderNodeDestructive (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5849:11)
+"shadow*" style props are deprecated. Use "boxShadow".
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+  console.warn (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\expo\node_modules\@expo\cli\src\start\server\serverLogLikeMetro.ts:161:21)
+  warnOnce (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-native-web\dist\modules\warnOnce\index.js:24:13)
+  createDOMProps (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-native-web\dist\modules\createDOMProps\index.js:805:13)
+  createElement (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-native-web\dist\exports\createElement\index.js:23:32)
+  Component (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-native-web\dist\exports\View\index.js:111:23)
+  Object.callComponentInDEV [as react-stack-bottom-frame] (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:8970:18)
+  renderWithHooks (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:4699:19)
+  run (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5539:39)
+  retryNode (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5899:31)
+  renderNodeDestructive (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5849:11)
+"shadow*" style props are deprecated. Use "boxShadow".
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+  console.warn (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\expo\node_modules\@expo\cli\src\start\server\serverLogLikeMetro.ts:161:21)
+  warnOnce (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-native-web\dist\modules\warnOnce\index.js:24:13)
+  createDOMProps (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-native-web\dist\modules\createDOMProps\index.js:805:13)
+  createElement (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-native-web\dist\exports\createElement\index.js:23:32)
+  Component (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-native-web\dist\exports\View\index.js:111:23)
+  Object.callComponentInDEV [as react-stack-bottom-frame] (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:8970:18)
+  renderWithHooks (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:4699:19)
+  run (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5539:39)
+  retryNode (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5899:31)
+  renderNodeDestructive (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5849:11)

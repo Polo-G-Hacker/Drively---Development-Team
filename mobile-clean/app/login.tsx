@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -22,8 +22,14 @@ const LoginScreen = () => {
   const [role, setRole] = useState('passenger');
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login, register } = useAuth();
+  const { login, register, user, isLoading: authLoading } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace('/(tabs)');
+    }
+  }, [authLoading, user, router]);
 
   const handleAuth = async () => {
     if (!phoneNumber || !password) {
@@ -66,111 +72,119 @@ const LoginScreen = () => {
     }
   };
 
+  const content = (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.keyboardView}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.content}>
+          <Text style={styles.logo}>Drive.ly</Text>
+          <Text style={styles.subtitle}>
+            {isLogin ? 'Welcome Back!' : 'Create Account'}
+          </Text>
+
+          {!isLogin && (
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Full Name"
+                placeholderTextColor="#FFFFFF80"
+                value={name}
+                onChangeText={setName}
+              />
+            </View>
+          )}
+
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Phone Number"
+              placeholderTextColor="#FFFFFF80"
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              keyboardType="phone-pad"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor="#FFFFFF80"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+          </View>
+
+          {!isLogin && (
+            <View style={styles.roleSelector}>
+              <TouchableOpacity
+                style={[
+                  styles.roleButton,
+                  role === 'passenger' && styles.roleButtonActive,
+                ]}
+                onPress={() => setRole('passenger')}
+              >
+                <Text
+                  style={[
+                    styles.roleButtonText,
+                    role === 'passenger' && styles.roleButtonTextActive,
+                  ]}
+                >
+                  Passenger
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.roleButton,
+                  role === 'driver' && styles.roleButtonActive,
+                ]}
+                onPress={() => setRole('driver')}
+              >
+                <Text
+                  style={[
+                    styles.roleButtonText,
+                    role === 'driver' && styles.roleButtonTextActive,
+                  ]}
+                >
+                  Driver
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleAuth}
+            disabled={isLoading}
+          >
+            <Text style={styles.buttonText}>
+              {isLoading ? 'Processing...' : isLogin ? 'Login' : 'Sign Up'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
+            <Text style={styles.switchText}>
+              {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Login'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+
+  if (Platform.OS === 'web') {
+    return <View style={[styles.container, styles.webContainer]}>{content}</View>;
+  }
+
   return (
     <LinearGradient
       colors={['#0066FF', '#0044CC']}
       style={styles.container}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.content}>
-            <Text style={styles.logo}>Drive.ly</Text>
-            <Text style={styles.subtitle}>
-              {isLogin ? 'Welcome Back!' : 'Create Account'}
-            </Text>
-
-            {!isLogin && (
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Full Name"
-                  placeholderTextColor="#FFFFFF80"
-                  value={name}
-                  onChangeText={setName}
-                />
-              </View>
-            )}
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Phone Number"
-                placeholderTextColor="#FFFFFF80"
-                value={phoneNumber}
-                onChangeText={setPhoneNumber}
-                keyboardType="phone-pad"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor="#FFFFFF80"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-            </View>
-
-            {!isLogin && (
-              <View style={styles.roleSelector}>
-                <TouchableOpacity
-                  style={[
-                    styles.roleButton,
-                    role === 'passenger' && styles.roleButtonActive,
-                  ]}
-                  onPress={() => setRole('passenger')}
-                >
-                  <Text
-                    style={[
-                      styles.roleButtonText,
-                      role === 'passenger' && styles.roleButtonTextActive,
-                    ]}
-                  >
-                    Passenger
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.roleButton,
-                    role === 'driver' && styles.roleButtonActive,
-                  ]}
-                  onPress={() => setRole('driver')}
-                >
-                  <Text
-                    style={[
-                      styles.roleButtonText,
-                      role === 'driver' && styles.roleButtonTextActive,
-                    ]}
-                  >
-                    Driver
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={styles.button}
-              onPress={handleAuth}
-              disabled={isLoading}
-            >
-              <Text style={styles.buttonText}>
-                {isLoading ? 'Processing...' : isLogin ? 'Login' : 'Sign Up'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
-              <Text style={styles.switchText}>
-                {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Login'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      {content}
     </LinearGradient>
   );
 };
@@ -178,6 +192,9 @@ const LoginScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  webContainer: {
+    backgroundColor: '#0066FF',
   },
   keyboardView: {
     flex: 1,
