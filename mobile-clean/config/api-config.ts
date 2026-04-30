@@ -95,6 +95,8 @@ export const API_ENDPOINTS = {
     LOGIN: '/auth/login',
     REGISTER: '/auth/register',
     ME: '/auth/me',
+    SETTINGS: '/auth/settings',
+    CHANGE_PASSWORD: '/auth/password',
     LOGOUT: '/auth/logout',
   },
   // Rides

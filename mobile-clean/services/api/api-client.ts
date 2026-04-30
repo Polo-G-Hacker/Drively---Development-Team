@@ -5,7 +5,16 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_CONFIG, API_ENDPOINTS, fetchWithTimeout } from '../../config/api-config';
-import type { ApiResponse, User, Ride, DriverProfile, Community, Transaction, PaymentData } from '../../types';
+import type {
+  ApiResponse,
+  User,
+  Ride,
+  DriverProfile,
+  Community,
+  Transaction,
+  PaymentData,
+  UserSettings,
+} from '../../types';
 
 /**
  * Generic API call function
@@ -68,6 +77,20 @@ export const authAPI = {
     });
   },
 
+  updateSettings: async (settings: UserSettings) => {
+    return apiCall<{ message: string; user: User }>(API_ENDPOINTS.AUTH.SETTINGS, {
+      method: 'PATCH',
+      body: JSON.stringify({ settings }),
+    });
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string, confirmPassword: string) => {
+    return apiCall<{ message: string; user: User }>(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, {
+      method: 'PATCH',
+      body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+    });
+  },
+
   logout: async () => {
     return apiCall<{ message: string }>(API_ENDPOINTS.AUTH.LOGOUT, {
       method: 'POST',
@@ -114,7 +137,7 @@ export const rideAPI = {
   },
 
   getRideHistory: async () => {
-    return apiCall<Ride[]>(API_ENDPOINTS.RIDES.HISTORY, {
+    return apiCall<{ rides: Ride[] }>(API_ENDPOINTS.RIDES.HISTORY, {
       method: 'GET',
     });
   },
@@ -125,15 +148,32 @@ export const rideAPI = {
  */
 export const driverAPI = {
   createProfile: async (data: { vehicleModel: string; vehiclePlateNumber: string; vehicleColor: string }) => {
-    return apiCall<DriverProfile>(API_ENDPOINTS.DRIVERS.CREATE_PROFILE, {
+    return apiCall<{ message: string; driver: DriverProfile }>(API_ENDPOINTS.DRIVERS.CREATE_PROFILE, {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
   getProfile: async () => {
-    return apiCall<DriverProfile>(API_ENDPOINTS.DRIVERS.GET_PROFILE, {
+    return apiCall<{ driver: DriverProfile }>(API_ENDPOINTS.DRIVERS.GET_PROFILE, {
       method: 'GET',
+    });
+  },
+
+  updateProfile: async (data: {
+    name?: string;
+    phoneNumber?: string;
+    email?: string | null;
+    profileImage?: string | null;
+    vehicleType?: 'car' | 'bike' | 'minibus';
+    vehicleModel?: string;
+    vehiclePlateNumber?: string;
+    vehicleColor?: string;
+    licenseNumber?: string;
+  }) => {
+    return apiCall<{ message: string; driver?: DriverProfile | null; user?: User }>(API_ENDPOINTS.DRIVERS.GET_PROFILE, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
     });
   },
 
@@ -167,8 +207,20 @@ export const driverAPI = {
  */
 export const passengerAPI = {
   getProfile: async () => {
-    return apiCall<User>(API_ENDPOINTS.PASSENGERS.GET_PROFILE, {
+    return apiCall<{ user: User }>(API_ENDPOINTS.PASSENGERS.GET_PROFILE, {
       method: 'GET',
+    });
+  },
+
+  updateProfile: async (data: {
+    name?: string;
+    phoneNumber?: string;
+    email?: string | null;
+    profileImage?: string | null;
+  }) => {
+    return apiCall<{ message: string; user: User }>(API_ENDPOINTS.PASSENGERS.GET_PROFILE, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
     });
   },
 

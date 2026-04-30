@@ -6,6 +6,22 @@ const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
+function buildAuthUserPayload(user) {
+  return {
+    id: user.id,
+    _id: user._id,
+    phoneNumber: user.phoneNumber,
+    name: user.name,
+    role: user.role,
+    email: user.email || null,
+    profileImage: user.profileImage || null,
+    rating: user.rating,
+    isVerified: user.isVerified,
+    wallet: user.wallet,
+    settings: user.settings,
+  };
+}
+
 router.post(
   '/register',
   [
@@ -36,13 +52,7 @@ router.post(
       return res.status(201).json({
         message: 'User registered successfully',
         token,
-        user: {
-          id: user.id,
-          _id: user._id,
-          phoneNumber: user.phoneNumber,
-          name: user.name,
-          role: user.role,
-        },
+        user: buildAuthUserPayload(user),
       });
     } catch (error) {
       console.error('Registration error:', error);
@@ -84,15 +94,7 @@ router.post(
       return res.json({
         message: 'Login successful',
         token,
-        user: {
-          id: onlineUser.id,
-          _id: onlineUser._id,
-          phoneNumber: onlineUser.phoneNumber,
-          name: onlineUser.name,
-          role: onlineUser.role,
-          rating: onlineUser.rating,
-          wallet: onlineUser.wallet,
-        },
+        user: buildAuthUserPayload(onlineUser),
       });
     } catch (error) {
       console.error('Login error:', error);
@@ -103,18 +105,88 @@ router.post(
 
 router.get('/me', auth, async (req, res) => {
   return res.json({
-    user: {
-      id: req.user.id,
-      _id: req.user._id,
-      phoneNumber: req.user.phoneNumber,
-      name: req.user.name,
-      role: req.user.role,
-      rating: req.user.rating,
-      isVerified: req.user.isVerified,
-      wallet: req.user.wallet,
-    },
+    user: buildAuthUserPayload(req.user),
   });
 });
+
+router.patch(
+  '/settings',
+  auth,
+  [
+    body('settings').isObject().withMessage('Settings are required'),
+    body('settings.notifications.rideUpdates').optional().isBoolean().withMessage('Ride updates preference must be a boolean'),
+    body('settings.notifications.smsUpdates').optional().isBoolean().withMessage('SMS updates preference must be a boolean'),
+    body('settings.notifications.promotions').optional().isBoolean().withMessage('Promotions preference must be a boolean'),
+    body('settings.privacy.shareLiveLocation').optional().isBoolean().withMessage('Location sharing preference must be a boolean'),
+    body('settings.privacy.communityVisibility').optional().isBoolean().withMessage('Community visibility preference must be a boolean'),
+    body('settings.security.loginAlerts').optional().isBoolean().withMessage('Login alert preference must be a boolean'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const updatedUser = await User.updateById(req.user.id, {
+        settings: req.body.settings,
+      });
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      return res.json({
+        message: 'Settings updated successfully',
+        user: buildAuthUserPayload(updatedUser),
+      });
+    } catch (error) {
+      console.error('Update settings error:', error);
+      return res.status(500).json({ error: 'Failed to update settings' });
+    }
+  }
+);
+
+router.patch(
+  '/password',
+  auth,
+  [
+    body('currentPassword').notEmpty().withMessage('Current password is required'),
+    body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
+    body('confirmPassword')
+      .notEmpty()
+      .withMessage('Please confirm your new password')
+      .custom((value, { req }) => value === req.body.newPassword)
+      .withMessage('Password confirmation does not match'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const updatedUser = await User.updatePassword(req.user.id, req.body.currentPassword, req.body.newPassword);
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      return res.json({
+        message: 'Password updated successfully',
+        user: buildAuthUserPayload(updatedUser),
+      });
+    } catch (error) {
+      console.error('Update password error:', error);
+
+      if (error.code === 'INVALID_CURRENT_PASSWORD' || error.code === 'PASSWORD_REUSE') {
+        return res.status(400).json({ error: error.message });
+      }
+
+      return res.status(500).json({ error: 'Failed to update password' });
+    }
+  }
+);
 
 router.post('/logout', auth, async (req, res) => {
   try {

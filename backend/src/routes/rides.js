@@ -248,7 +248,10 @@ router.post(
 
 router.get('/history/user', auth, async (req, res) => {
   try {
-    const rides = await Ride.findHistoryForUser(req.user.id);
+    const rides =
+      req.user.role === 'driver'
+        ? await Ride.findHistoryForDriverUser(req.user.id)
+        : await Ride.findHistoryForUser(req.user.id);
     return res.json({ rides });
   } catch (error) {
     console.error('Get ride history error:', error);

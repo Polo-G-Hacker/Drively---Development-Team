@@ -1,11 +1,19 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/auth-context';
 
 export default function TabLayout() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const isDriver = user?.role === 'driver';
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (!user) {
+    return <Redirect href="/login" />;
+  }
 
   return (
     <Tabs

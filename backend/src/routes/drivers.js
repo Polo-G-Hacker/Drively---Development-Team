@@ -1,6 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Driver = require('../models/Driver');
+const User = require('../models/User');
 const { auth, driverAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -60,6 +61,89 @@ router.get('/profile', driverAuth, async (req, res) => {
     return res.status(500).json({ error: 'Failed to fetch driver profile' });
   }
 });
+
+router.patch(
+  '/profile',
+  driverAuth,
+  [
+    body('name').optional().trim().notEmpty().withMessage('Name cannot be empty'),
+    body('phoneNumber').optional().trim().notEmpty().withMessage('Phone number cannot be empty'),
+    body('email')
+      .customSanitizer((value) => (value === '' ? null : value))
+      .custom((value) => value === undefined || value === null || /\S+@\S+\.\S+/.test(value))
+      .withMessage('Email must be valid'),
+    body('profileImage')
+      .optional({ nullable: true })
+      .customSanitizer((value) => (value === '' ? null : value))
+      .custom((value) => value === undefined || value === null || typeof value === 'string')
+      .withMessage('Profile image must be a string'),
+    body('vehicleModel').optional().trim().notEmpty().withMessage('Vehicle model cannot be empty'),
+    body('vehiclePlateNumber').optional().trim().notEmpty().withMessage('Plate number cannot be empty'),
+    body('vehicleColor').optional().trim().notEmpty().withMessage('Vehicle color cannot be empty'),
+    body('vehicleType').optional().isIn(['car', 'bike', 'minibus']).withMessage('Invalid vehicle type'),
+    body('licenseNumber').optional().trim().notEmpty().withMessage('License number cannot be empty'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const updatedUser = await User.updateById(req.user.id, {
+        name: req.body.name,
+        phoneNumber: req.body.phoneNumber,
+        email: req.body.email,
+        profileImage: req.body.profileImage,
+      });
+
+      const driver = await Driver.findByUserId(req.user.id);
+      let updatedDriver;
+
+      if (!driver) {
+        if (!req.body.vehicleModel || !req.body.vehiclePlateNumber || !req.body.vehicleColor) {
+          return res.json({
+            message: 'Account details updated successfully',
+            user: updatedUser,
+            driver: null,
+          });
+        }
+
+        updatedDriver = await Driver.create({
+          userId: req.user.id,
+          vehicleType: req.body.vehicleType || 'car',
+          vehicleModel: req.body.vehicleModel,
+          vehiclePlateNumber: req.body.vehiclePlateNumber,
+          vehicleColor: req.body.vehicleColor,
+          licenseNumber: req.body.licenseNumber || req.body.vehiclePlateNumber,
+        });
+      } else {
+        updatedDriver = await Driver.updateById(driver.id, {
+          vehicleType: req.body.vehicleType,
+          vehicleModel: req.body.vehicleModel,
+          vehiclePlateNumber: req.body.vehiclePlateNumber,
+          vehicleColor: req.body.vehicleColor,
+          licenseNumber: req.body.licenseNumber,
+          includeUser: true,
+        });
+      }
+
+      return res.json({
+        message: 'Driver profile updated successfully',
+        user: updatedUser,
+        driver: updatedDriver,
+      });
+    } catch (error) {
+      console.error('Update driver profile error:', error);
+
+      if (error.code === 'ER_DUP_ENTRY') {
+        return res.status(400).json({ error: 'Phone number or plate number is already in use' });
+      }
+
+      return res.status(500).json({ error: 'Failed to update driver profile' });
+    }
+  }
+);
 
 router.patch('/availability', driverAuth, async (req, res) => {
   try {

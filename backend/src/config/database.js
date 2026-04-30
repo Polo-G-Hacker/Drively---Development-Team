@@ -29,7 +29,8 @@ async function initializeSchema() {
       name VARCHAR(255) NOT NULL,
       role ENUM('driver', 'passenger', 'admin') NOT NULL,
       email VARCHAR(255) NULL,
-      profile_image VARCHAR(255) NULL,
+      profile_image LONGTEXT NULL,
+      settings_json JSON NULL,
       rating DECIMAL(3,2) NOT NULL DEFAULT 0,
       total_ratings INT NOT NULL DEFAULT 0,
       is_verified TINYINT(1) NOT NULL DEFAULT 0,
@@ -42,6 +43,13 @@ async function initializeSchema() {
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
+
+  await query('ALTER TABLE users MODIFY COLUMN profile_image LONGTEXT NULL');
+
+  const settingsColumns = await query("SHOW COLUMNS FROM users LIKE 'settings_json'");
+  if (!settingsColumns.length) {
+    await query('ALTER TABLE users ADD COLUMN settings_json JSON NULL AFTER profile_image');
+  }
 
   await query(`
     CREATE TABLE IF NOT EXISTS communities (

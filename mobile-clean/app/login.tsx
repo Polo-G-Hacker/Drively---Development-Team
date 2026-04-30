@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,6 +12,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/auth-context';
+import { PasswordInput } from '../components/password-input';
+import { showFeedbackAlert } from '../utils/show-feedback-alert';
 
 const LoginScreen = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -33,12 +34,12 @@ const LoginScreen = () => {
 
   const handleAuth = async () => {
     if (!phoneNumber || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showFeedbackAlert('Error', 'Please fill in all fields');
       return;
     }
 
     if (!isLogin && !name) {
-      Alert.alert('Error', 'Please enter your name');
+      showFeedbackAlert('Error', 'Please enter your name');
       return;
     }
 
@@ -55,7 +56,7 @@ const LoginScreen = () => {
       if (result.success) {
         if (!isLogin) {
           // Registration successful - switch to login mode
-          Alert.alert('Success', 'Registration successful! Please login with your credentials.');
+          showFeedbackAlert('Success', 'Registration successful! Please login with your credentials.');
           setIsLogin(true);
           setName('');
         } else {
@@ -63,10 +64,10 @@ const LoginScreen = () => {
           router.replace('/(tabs)');
         }
       } else {
-        Alert.alert('Error', result.error);
+        showFeedbackAlert('Error', result.error);
       }
-    } catch (error) {
-      Alert.alert('Error', 'Authentication failed');
+    } catch {
+      showFeedbackAlert('Error', 'Authentication failed');
     } finally {
       setIsLoading(false);
     }
@@ -108,13 +109,13 @@ const LoginScreen = () => {
           </View>
 
           <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
+            <PasswordInput
+              inputStyle={styles.input}
+              iconColor="#FFFFFFB3"
               placeholder="Password"
               placeholderTextColor="#FFFFFF80"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
             />
           </View>
 

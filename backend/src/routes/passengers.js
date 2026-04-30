@@ -1,4 +1,5 @@
 const express = require('express');
+const { body, validationResult } = require('express-validator');
 const { auth, passengerAuth } = require('../middleware/auth');
 const User = require('../models/User');
 const Community = require('../models/Community');
@@ -19,6 +20,57 @@ router.get('/profile', passengerAuth, async (req, res) => {
     return res.status(500).json({ error: 'Failed to fetch passenger profile' });
   }
 });
+
+router.patch(
+  '/profile',
+  passengerAuth,
+  [
+    body('name').optional().trim().notEmpty().withMessage('Name cannot be empty'),
+    body('phoneNumber').optional().trim().notEmpty().withMessage('Phone number cannot be empty'),
+    body('email')
+      .customSanitizer((value) => (value === '' ? null : value))
+      .custom((value) => value === undefined || value === null || /\S+@\S+\.\S+/.test(value))
+      .withMessage('Email must be valid'),
+    body('profileImage')
+      .optional({ nullable: true })
+      .customSanitizer((value) => (value === '' ? null : value))
+      .custom((value) => value === undefined || value === null || typeof value === 'string')
+      .withMessage('Profile image must be a string'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const updatedUser = await User.updateById(req.user.id, {
+        name: req.body.name,
+        phoneNumber: req.body.phoneNumber,
+        email: req.body.email,
+        profileImage: req.body.profileImage,
+      });
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const communities = await Community.listByUserId(req.user.id);
+      return res.json({
+        message: 'Profile updated successfully',
+        user: { ...updatedUser, communities },
+      });
+    } catch (error) {
+      console.error('Update passenger profile error:', error);
+
+      if (error.code === 'ER_DUP_ENTRY') {
+        return res.status(400).json({ error: 'Phone number is already in use' });
+      }
+
+      return res.status(500).json({ error: 'Failed to update profile' });
+    }
+  }
+);
 
 router.patch('/location', passengerAuth, async (req, res) => {
   try {

@@ -1,7 +1,7 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_CONFIG, API_ENDPOINTS, fetchWithTimeout } from '../config/api-config';
-import type { User, AuthResponse, ApiResponse } from '../types';
+import type { ApiResponse, AuthResponse, User } from '../types';
 
 interface AuthContextType {
   user: User | null;
@@ -10,6 +10,7 @@ interface AuthContextType {
   login: (phoneNumber: string, password: string) => Promise<ApiResponse<AuthResponse>>;
   register: (phoneNumber: string, password: string, name: string, role: string) => Promise<ApiResponse<AuthResponse>>;
   logout: () => Promise<void>;
+  updateStoredUser: (nextUser: User) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,11 +32,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadStoredAuth();
   }, []);
 
+  const updateStoredUser = async (nextUser: User) => {
+    await AsyncStorage.setItem('user', JSON.stringify(nextUser));
+    setUser(nextUser);
+  };
+
   const loadStoredAuth = async () => {
     try {
       const storedToken = await AsyncStorage.getItem('token');
       const storedUser = await AsyncStorage.getItem('user');
-      
+
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
@@ -51,7 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const url = `${API_CONFIG.BASE_URL}${API_ENDPOINTS.AUTH.LOGIN}`;
       console.log('Logging in to:', url);
-      
+
       const response = await fetchWithTimeout(url, {
         method: 'POST',
         headers: {
@@ -65,13 +71,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (response.ok) {
         await AsyncStorage.setItem('token', data.token);
-        await AsyncStorage.setItem('user', JSON.stringify(data.user));
         setToken(data.token);
-        setUser(data.user);
+        await updateStoredUser(data.user);
         return { success: true, data };
-      } else {
-        return { success: false, error: data.error };
       }
+
+      return { success: false, error: data.error };
     } catch (error) {
       console.error('Login error:', error);
       const message =
@@ -86,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const url = `${API_CONFIG.BASE_URL}${API_ENDPOINTS.AUTH.REGISTER}`;
       console.log('Registering to:', url);
-      
+
       const response = await fetchWithTimeout(url, {
         method: 'POST',
         headers: {
@@ -99,11 +104,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Register response:', data);
 
       if (response.ok) {
-        // Don't auto-login after registration - user must login manually
         return { success: true, data };
-      } else {
-        return { success: false, error: data.error || data.errors?.[0]?.msg };
       }
+
+      return { success: false, error: data.error || data.errors?.[0]?.msg };
     } catch (error) {
       console.error('Registration error:', error);
       const message =
@@ -119,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await fetchWithTimeout(`${API_CONFIG.BASE_URL}${API_ENDPOINTS.AUTH.LOGOUT}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
     } catch (error) {
@@ -141,6 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         register,
         logout,
+        updateStoredUser,
       }}
     >
       {children}
@@ -153,5 +158,6 @@ export const useAuth = () => {
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
+
   return context;
 };

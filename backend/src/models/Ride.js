@@ -264,10 +264,36 @@ async function findHistoryForUser(userId, { completedOnly = false, limit = 20 } 
   return rides;
 }
 
+async function findHistoryForDriverUser(userId, { completedOnly = false, limit = 20 } = {}, connection = null) {
+  const rows = await query(
+    `
+      SELECT DISTINCT r.*
+      FROM rides r
+      INNER JOIN drivers d ON d.id = r.driver_id
+      WHERE d.user_id = ?
+        ${completedOnly ? "AND r.status = 'completed'" : ''}
+      ORDER BY r.created_at DESC
+      LIMIT ?
+    `,
+    [userId, limit],
+    connection
+  );
+
+  const rides = [];
+  for (const row of rows) {
+    rides.push(
+      await findById(row.id, { includeDriver: true, includePassengers: true, includePassengerUsers: true }, connection)
+    );
+  }
+
+  return rides;
+}
+
 module.exports = {
   addPassenger,
   create,
   findById,
+  findHistoryForDriverUser,
   findHistoryForUser,
   getPassengersForRide,
   mapRidePassengerRow,
