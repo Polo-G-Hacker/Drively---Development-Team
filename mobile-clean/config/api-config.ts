@@ -110,6 +110,7 @@ export const API_ENDPOINTS = {
   },
   // Drivers
   DRIVERS: {
+    LIST: '/drivers',
     CREATE_PROFILE: '/drivers/profile',
     GET_PROFILE: '/drivers/profile',
     UPDATE_AVAILABILITY: '/drivers/availability',
@@ -129,5 +130,14 @@ export const API_ENDPOINTS = {
     PROCESS: '/payments/process',
     HISTORY: '/payments/history',
     ADD_FUNDS: '/payments/wallet/add',
+  },
+  // Reviews
+  REVIEWS: {
+    ME: '/reviews/me',
+    AUTHORED: '/reviews/authored',
+    MY_REVIEW: (id: string) => `/reviews/my-review/${id}`,
+    USER: (id: string) => `/reviews/user/${id}`,
+    SUBMIT: '/reviews',
+    UPDATE: (id: string) => `/reviews/${id}`,
   },
 } as const;

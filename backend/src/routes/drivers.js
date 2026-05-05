@@ -6,6 +6,16 @@ const { auth, driverAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
+router.get('/', auth, async (req, res) => {
+  try {
+    const drivers = await Driver.listAll({ includeUser: true });
+    return res.json({ drivers });
+  } catch (error) {
+    console.error('List drivers error:', error);
+    return res.status(500).json({ error: 'Failed to fetch drivers' });
+  }
+});
+
 router.post(
   '/profile',
   auth,

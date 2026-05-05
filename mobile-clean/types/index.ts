@@ -4,6 +4,8 @@
  */
 
 // User Types
+export type PaymentMethodId = 'mtn_momo' | 'orange_money' | null;
+
 export interface UserSettings {
   notifications: {
     rideUpdates: boolean;
@@ -16,6 +18,9 @@ export interface UserSettings {
   };
   security: {
     loginAlerts: boolean;
+  };
+  payments: {
+    defaultMethod: PaymentMethodId;
   };
 }
 
@@ -166,6 +171,26 @@ export interface PaymentData {
   rideId: string;
   amount: number;
   method: 'wallet' | 'card' | 'cash';
+}
+
+// Review Types
+export interface Review {
+  id: string;
+  rideId: string;
+  reviewer: {
+    id: string;
+    name: string;
+    profileImage?: string;
+  };
+  reviewee: string | {
+    id: string;
+    name: string;
+    profileImage?: string;
+  };
+  rating: number;
+  comment?: string;
+  reviewerRole: 'passenger' | 'driver';
+  createdAt: string;
 }
 
 // API Response Types

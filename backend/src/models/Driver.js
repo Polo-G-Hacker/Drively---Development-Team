@@ -53,7 +53,10 @@ function mapDriverRow(row, { user = null } = {}) {
     currentPassengerCount: toNumber(row.current_passenger_count),
     totalEarnings: toNumber(row.total_earnings),
     totalRides: toNumber(row.total_rides),
-    rating: toNumber(row.rating),
+    rating:
+      user && typeof user === 'object' && user.rating !== undefined
+        ? toNumber(user.rating)
+        : toNumber(row.rating),
     isPremium: toBoolean(row.is_premium),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -260,10 +263,16 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return radius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+async function listAll(options = {}, connection = null) {
+  const rows = await query('SELECT * FROM drivers', [], connection);
+  return Promise.all(rows.map(row => enrichDriver(row, options, connection)));
+}
+
 module.exports = {
   create,
   findById,
   findByUserId,
+  listAll,
   listAvailableWithRoutes,
   listNearby,
   mapDriverRow,

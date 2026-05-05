@@ -136,3 +136,23 @@ CREATE TABLE IF NOT EXISTS `ride_passengers` (
     FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
     ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS `reviews` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `ride_id` INT NULL,
+  `reviewer_id` INT NOT NULL,
+  `reviewee_id` INT NOT NULL,
+  `rating` INT NOT NULL,
+  `comment` TEXT NULL,
+  `reviewer_role` ENUM('passenger', 'driver') NOT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_reviews_ride`
+    FOREIGN KEY (`ride_id`) REFERENCES `rides`(`id`)
+    ON DELETE CASCADE,
+  CONSTRAINT `fk_reviews_reviewer`
+    FOREIGN KEY (`reviewer_id`) REFERENCES `users`(`id`)
+    ON DELETE CASCADE,
+  CONSTRAINT `fk_reviews_reviewee`
+    FOREIGN KEY (`reviewee_id`) REFERENCES `users`(`id`)
+    ON DELETE CASCADE
+);

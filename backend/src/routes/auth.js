@@ -120,6 +120,10 @@ router.patch(
     body('settings.privacy.shareLiveLocation').optional().isBoolean().withMessage('Location sharing preference must be a boolean'),
     body('settings.privacy.communityVisibility').optional().isBoolean().withMessage('Community visibility preference must be a boolean'),
     body('settings.security.loginAlerts').optional().isBoolean().withMessage('Login alert preference must be a boolean'),
+    body('settings.payments.defaultMethod')
+      .optional({ nullable: true })
+      .custom((value) => value === null || ['mtn_momo', 'orange_money'].includes(value))
+      .withMessage('Default payment method must be MTN Mobile Money or Orange Money'),
   ],
   async (req, res) => {
     try {

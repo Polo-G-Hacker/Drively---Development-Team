@@ -9,6 +9,7 @@ const rideRoutes = require('./routes/rides');
 const driverRoutes = require('./routes/drivers');
 const passengerRoutes = require('./routes/passengers');
 const paymentRoutes = require('./routes/payments');
+const reviewRoutes = require('./routes/reviews');
 const { initializeSocket } = require('./services/socketService');
 
 const app = express();
@@ -31,6 +32,7 @@ app.use('/api/rides', rideRoutes);
 app.use('/api/drivers', driverRoutes);
 app.use('/api/passengers', passengerRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

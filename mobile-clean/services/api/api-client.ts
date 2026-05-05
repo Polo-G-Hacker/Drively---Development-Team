@@ -14,6 +14,7 @@ import type {
   Transaction,
   PaymentData,
   UserSettings,
+  Review,
 } from '../../types';
 
 /**
@@ -147,6 +148,12 @@ export const rideAPI = {
  * Drivers API
  */
 export const driverAPI = {
+  getAllDrivers: async () => {
+    return apiCall<{ drivers: DriverProfile[] }>(API_ENDPOINTS.DRIVERS.LIST, {
+      method: 'GET',
+    });
+  },
+
   createProfile: async (data: { vehicleModel: string; vehiclePlateNumber: string; vehicleColor: string }) => {
     return apiCall<{ message: string; driver: DriverProfile }>(API_ENDPOINTS.DRIVERS.CREATE_PROFILE, {
       method: 'POST',
@@ -272,6 +279,54 @@ export const paymentAPI = {
   addFunds: async (data: { amount: number; paymentDetails: any }) => {
     return apiCall<PaymentData>(API_ENDPOINTS.PAYMENTS.ADD_FUNDS, {
       method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+/**
+ * Reviews API
+ */
+export const reviewAPI = {
+  getMyReviews: async () => {
+    return apiCall<{ reviews: Review[] }>(API_ENDPOINTS.REVIEWS.ME, {
+      method: 'GET',
+    });
+  },
+
+  getAuthoredReviews: async () => {
+    return apiCall<{ reviews: Review[] }>(API_ENDPOINTS.REVIEWS.AUTHORED, {
+      method: 'GET',
+    });
+  },
+
+  getMyReviewForUser: async (revieweeId: string) => {
+    return apiCall<{ review: Review | null }>(API_ENDPOINTS.REVIEWS.MY_REVIEW(revieweeId), {
+      method: 'GET',
+    });
+  },
+
+  getUserReviews: async (userId: string) => {
+    return apiCall<{ reviews: Review[] }>(API_ENDPOINTS.REVIEWS.USER(userId), {
+      method: 'GET',
+    });
+  },
+
+  submitReview: async (data: {
+    rideId?: string | null;
+    revieweeId: string;
+    rating: number;
+    comment?: string;
+  }) => {
+    return apiCall<{ message: string; review: Review }>(API_ENDPOINTS.REVIEWS.SUBMIT, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateReview: async (reviewId: string, data: { rating?: number; comment?: string }) => {
+    return apiCall<{ message: string; review: Review }>(API_ENDPOINTS.REVIEWS.UPDATE(reviewId), {
+      method: 'PUT',
       body: JSON.stringify(data),
     });
   },

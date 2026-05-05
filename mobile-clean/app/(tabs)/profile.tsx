@@ -17,9 +17,10 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../contexts/auth-context';
-import { authAPI, driverAPI, passengerAPI, rideAPI } from '../../services/api/api-client';
-import type { DriverProfile, Ride, RideParticipant, User, UserSettings } from '../../types';
+import { authAPI, driverAPI, passengerAPI, reviewAPI, rideAPI } from '../../services/api/api-client';
+import type { DriverProfile, PaymentMethodId, Review, Ride, RideParticipant, User, UserSettings } from '../../types';
 import { PasswordInput } from '../../components/password-input';
 import { showFeedbackAlert } from '../../utils/show-feedback-alert';
 
@@ -40,6 +41,22 @@ type PasswordForm = {
   currentPassword: string;
   newPassword: string;
   confirmPassword: string;
+};
+
+type ReviewForm = {
+  revieweeId: string;
+  rating: number;
+  comment: string;
+};
+
+type PaymentMethodOption = {
+  id: Exclude<PaymentMethodId, null>;
+  badgeBackground: string;
+  badgeShape: 'pill' | 'square';
+  badgeText: string;
+  badgeTextColor: string;
+  subtitle: string;
+  title: string;
 };
 
 type MenuItem = {
@@ -66,6 +83,33 @@ const emptyPasswordForm: PasswordForm = {
   confirmPassword: '',
 };
 
+const emptyReviewForm: ReviewForm = {
+  revieweeId: '',
+  rating: 0,
+  comment: '',
+};
+
+const paymentMethodOptions: PaymentMethodOption[] = [
+  {
+    id: 'mtn_momo',
+    title: 'MTN Mobile Money',
+    subtitle: 'Use your MTN MoMo line for ride payments.',
+    badgeText: 'MTN',
+    badgeBackground: '#FFD400',
+    badgeTextColor: '#0B3A82',
+    badgeShape: 'pill',
+  },
+  {
+    id: 'orange_money',
+    title: 'Orange Money',
+    subtitle: 'Use your Orange Money wallet at checkout.',
+    badgeText: 'Orange',
+    badgeBackground: '#FF7900',
+    badgeTextColor: '#FFFFFF',
+    badgeShape: 'square',
+  },
+];
+
 const defaultSettings: UserSettings = {
   notifications: {
     rideUpdates: true,
@@ -78,6 +122,9 @@ const defaultSettings: UserSettings = {
   },
   security: {
     loginAlerts: true,
+  },
+  payments: {
+    defaultMethod: null,
   },
 };
 
@@ -104,6 +151,10 @@ function mergeSettings(settings?: Partial<UserSettings> | null): UserSettings {
     security: {
       ...defaultSettings.security,
       ...(settings?.security || {}),
+    },
+    payments: {
+      ...defaultSettings.payments,
+      ...(settings?.payments || {}),
     },
   };
 }
@@ -195,6 +246,99 @@ function pickProfileImageFromBrowser() {
   });
 }
 
+function estimateBase64SizeInBytes(value: string) {
+  const normalized = value.replace(/=+$/, '');
+  return Math.floor((normalized.length * 3) / 4);
+}
+
+function validateNativeProfileImage(asset: ImagePicker.ImagePickerAsset) {
+  if (!asset.base64) {
+    throw new Error('We could not prepare that image for upload. Please try a different photo.');
+  }
+
+  const maxBytes = 4 * 1024 * 1024;
+  const estimatedBytes = estimateBase64SizeInBytes(asset.base64);
+
+  if (estimatedBytes > maxBytes) {
+    throw new Error('Choose an image smaller than 4 MB.');
+  }
+
+  return `data:image/jpeg;base64,${asset.base64}`;
+}
+
+async function pickProfileImageFromNative() {
+  return new Promise<string | null>((resolve) => {
+    const handleAction = async (index: number) => {
+      try {
+        if (index === 0) {
+          // Take Photo
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== 'granted') {
+            Alert.alert('Permission Denied', 'We need access to your camera to take a profile photo.');
+            resolve(null);
+            return;
+          }
+
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+            base64: true,
+          });
+
+          if (!result.canceled && result.assets && result.assets.length > 0) {
+            const asset = result.assets[0];
+            resolve(validateNativeProfileImage(asset));
+          } else {
+            resolve(null);
+          }
+        } else if (index === 1) {
+          // Choose from Library
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== 'granted') {
+            Alert.alert('Permission Denied', 'We need access to your gallery to upload a profile photo.');
+            resolve(null);
+            return;
+          }
+
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+            base64: true,
+          });
+
+          if (!result.canceled && result.assets && result.assets.length > 0) {
+            const asset = result.assets[0];
+            resolve(validateNativeProfileImage(asset));
+          } else {
+            resolve(null);
+          }
+        } else {
+          resolve(null);
+        }
+      } catch (error) {
+        console.error('Error picking image:', error);
+        Alert.alert('Error', 'An error occurred while picking the image.');
+        resolve(null);
+      }
+    };
+
+    Alert.alert(
+      'Profile Photo',
+      'Choose an option',
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(null) },
+        { text: 'Take Photo', onPress: () => handleAction(0) },
+        { text: 'Choose from Library', onPress: () => handleAction(1) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(null) }
+    );
+  });
+}
+
 function formatStatusLabel(status?: string) {
   if (!status) {
     return 'Unknown';
@@ -219,6 +363,22 @@ function formatRideDate(ride: Ride) {
     }).format(new Date(referenceDate));
   } catch {
     return referenceDate;
+  }
+}
+
+function formatReviewDate(value?: string | null) {
+  if (!value) {
+    return 'Recently';
+  }
+
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }).format(new Date(value));
+  } catch {
+    return value;
   }
 }
 
@@ -266,6 +426,55 @@ function getRideSecondaryLabel(ride: Ride, isDriver: boolean) {
   return 'Driver details unavailable';
 }
 
+function getDriverUserId(driver: DriverProfile) {
+  if (typeof driver.user === 'string') {
+    return driver.user;
+  }
+
+  return driver.user?.id || driver.user?._id || '';
+}
+
+function getDriverName(driver: DriverProfile) {
+  if (driver.user && typeof driver.user === 'object' && driver.user.name) {
+    return driver.user.name;
+  }
+
+  return driver.vehicleModel || 'Driver';
+}
+
+function getDriverProfileImage(driver: DriverProfile) {
+  if (driver.user && typeof driver.user === 'object') {
+    return driver.user.profileImage || null;
+  }
+
+  return null;
+}
+
+function getDriverDetails(driver: DriverProfile) {
+  const parts = [driver.vehicleModel, driver.vehicleColor, driver.vehiclePlateNumber].filter(Boolean);
+  return parts.length > 0 ? parts.join(' - ') : 'Driver profile';
+}
+
+function getDriverAverageRating(driver: DriverProfile) {
+  if (driver.user && typeof driver.user === 'object' && typeof driver.user.rating === 'number') {
+    return driver.user.rating;
+  }
+
+  return driver.rating ?? 0;
+}
+
+function getPaymentMethodLabel(value?: PaymentMethodId) {
+  if (value === 'mtn_momo') {
+    return 'MTN Mobile Money';
+  }
+
+  if (value === 'orange_money') {
+    return 'Orange Money';
+  }
+
+  return 'Choose MTN or Orange Money';
+}
+
 const ProfileScreen = () => {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -278,6 +487,8 @@ const ProfileScreen = () => {
   const [isEditVisible, setIsEditVisible] = useState(false);
   const [isHistoryVisible, setIsHistoryVisible] = useState(false);
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
+  const [isSupportVisible, setIsSupportVisible] = useState(false);
+  const [isAboutVisible, setIsAboutVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -291,15 +502,42 @@ const ProfileScreen = () => {
   const [passwordForm, setPasswordForm] = useState<PasswordForm>(emptyPasswordForm);
 
   useEffect(() => {
-    loadProfile();
-  }, [user?.id, isDriver]);
+    const run = async () => {
+      if (!user) {
+        setIsLoadingProfile(false);
+        return;
+      }
+
+      setIsLoadingProfile(true);
+
+      try {
+        if (isDriver) {
+          const response = await driverAPI.getProfile();
+          if (response.success && response.data?.driver) {
+            setDriverProfile(response.data.driver);
+          } else {
+            setDriverProfile(null);
+          }
+        } else {
+          const response = await passengerAPI.getProfile();
+          if (response.success && response.data?.user) {
+            setPassengerProfile(response.data.user);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    void run();
+  }, [isDriver, user]);
 
   const driverUser =
     driverProfile && driverProfile.user && typeof driverProfile.user === 'object' ? driverProfile.user : null;
   const displayUser = (isDriver ? driverUser : passengerProfile) || user;
-  const displayRating = driverProfile?.rating ?? displayUser?.rating ?? 0;
-  const walletBalance = displayUser?.wallet?.balance ?? 0;
-  const walletCurrency = displayUser?.wallet?.currency ?? 'FCFA';
+  const displayRating = driverUser?.rating ?? driverProfile?.rating ?? displayUser?.rating ?? 0;
   const displayProfileImage = displayUser?.profileImage || null;
   const historyCountLabel = useMemo(() => {
     if (isDriver) {
@@ -332,6 +570,14 @@ const ProfileScreen = () => {
 
     return labels.length > 0 ? labels.join(', ') : 'Configure notifications and privacy';
   }, [displayUser?.settings]);
+  const paymentMethodSummary = useMemo(
+    () => getPaymentMethodLabel(mergeSettings(displayUser?.settings).payments.defaultMethod),
+    [displayUser?.settings]
+  );
+  const currentDefaultPaymentMethod = useMemo(
+    () => mergeSettings(displayUser?.settings).payments.defaultMethod,
+    [displayUser?.settings]
+  );
 
   const applyUserUpdate = async (nextUser: User) => {
     if (isDriver) {
@@ -355,35 +601,6 @@ const ProfileScreen = () => {
   useEffect(() => {
     setSettingsForm(mergeSettings(displayUser?.settings));
   }, [displayUser?.settings]);
-
-  const loadProfile = async () => {
-    if (!user) {
-      setIsLoadingProfile(false);
-      return;
-    }
-
-    setIsLoadingProfile(true);
-
-    try {
-      if (isDriver) {
-        const response = await driverAPI.getProfile();
-        if (response.success && response.data?.driver) {
-          setDriverProfile(response.data.driver);
-        } else {
-          setDriverProfile(null);
-        }
-      } else {
-        const response = await passengerAPI.getProfile();
-        if (response.success && response.data?.user) {
-          setPassengerProfile(response.data.user);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading profile:', error);
-    } finally {
-      setIsLoadingProfile(false);
-    }
-  };
 
   const loadRideHistory = async (forceRefresh = false) => {
     if (!user || isLoadingHistory || (hasLoadedHistory && !forceRefresh)) {
@@ -539,23 +756,75 @@ const ProfileScreen = () => {
     setIsSettingsVisible(true);
   };
 
-  const handleChangeProfileImage = async () => {
-    if (!displayUser) {
+  const openSupport = () => {
+    setIsSupportVisible(true);
+  };
+
+  const openAbout = () => {
+    setIsAboutVisible(true);
+  };
+
+  const [isPaymentMethodsVisible, setIsPaymentMethodsVisible] = useState(false);
+  const [isSavingPaymentMethod, setIsSavingPaymentMethod] = useState(false);
+  const [pendingPaymentMethodId, setPendingPaymentMethodId] = useState<Exclude<PaymentMethodId, null> | null>(null);
+
+  const openPaymentMethods = () => {
+    setIsPaymentMethodsVisible(true);
+  };
+
+  const handleSelectDefaultPaymentMethod = async (method: Exclude<PaymentMethodId, null>) => {
+    if (!displayUser || isSavingPaymentMethod) {
       return;
     }
 
-    if (Platform.OS !== 'web') {
-      showFeedbackAlert(
-        'Profile photo',
-        'Profile photo uploads are available in the web build right now. We can add the native media picker next.'
-      );
+    const currentSettings = mergeSettings(displayUser.settings);
+    if (currentSettings.payments.defaultMethod === method) {
+      setIsPaymentMethodsVisible(false);
+      return;
+    }
+
+    setIsSavingPaymentMethod(true);
+    setPendingPaymentMethodId(method);
+
+    try {
+      const nextSettings: UserSettings = {
+        ...currentSettings,
+        payments: {
+          defaultMethod: method,
+        },
+      };
+
+      const response = await authAPI.updateSettings(nextSettings);
+
+      if (!response.success || !response.data?.user) {
+        showFeedbackAlert('Payment method', response.error || 'Unable to save your default payment method.');
+        return;
+      }
+
+      setSettingsForm(mergeSettings(response.data.user.settings));
+      await applyUserUpdate(response.data.user);
+      setIsPaymentMethodsVisible(false);
+      showFeedbackAlert('Payment method updated', `${getPaymentMethodLabel(method)} is now your default payment method.`);
+    } catch (error) {
+      console.error('Error saving default payment method:', error);
+      showFeedbackAlert('Payment method', 'Something went wrong while saving your default payment method.');
+    } finally {
+      setIsSavingPaymentMethod(false);
+      setPendingPaymentMethodId(null);
+    }
+  };
+
+  const handleChangeProfileImage = async () => {
+    if (!displayUser) {
       return;
     }
 
     setIsUploadingImage(true);
 
     try {
-      const profileImage = await pickProfileImageFromBrowser();
+      const profileImage =
+        Platform.OS === 'web' ? await pickProfileImageFromBrowser() : await pickProfileImageFromNative();
+
       if (!profileImage) {
         return;
       }
@@ -731,16 +1000,212 @@ const ProfileScreen = () => {
     ]);
   };
 
+  const [isReviewsVisible, setIsReviewsVisible] = useState(false);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
+  const [allDrivers, setAllDrivers] = useState<DriverProfile[]>([]);
+  const [myReviews, setMyReviews] = useState<Record<string, Review>>({});
+  const [receivedReviews, setReceivedReviews] = useState<Review[]>([]);
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
+  const [selectedDriverReviews, setSelectedDriverReviews] = useState<Review[]>([]);
+  const [selectedDriverReviewsError, setSelectedDriverReviewsError] = useState<string | null>(null);
+  const [isLoadingSelectedDriverReviews, setIsLoadingSelectedDriverReviews] = useState(false);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewForm, setReviewForm] = useState<ReviewForm>(emptyReviewForm);
+
+  const loadReviewsData = async () => {
+    setIsLoadingReviews(true);
+    setReviewsError(null);
+
+    try {
+      if (isDriver) {
+        const response = await reviewAPI.getMyReviews();
+
+        if (!response.success || !response.data?.reviews) {
+          setReceivedReviews([]);
+          setReviewsError(response.error || 'Unable to load your reviews right now.');
+          return;
+        }
+
+        setReceivedReviews(response.data.reviews);
+        return;
+      }
+
+      const [driversRes, authoredReviewsRes] = await Promise.all([
+        driverAPI.getAllDrivers(),
+        reviewAPI.getAuthoredReviews(),
+      ]);
+
+      if (!driversRes.success) {
+        setAllDrivers([]);
+        setReviewsError(driversRes.error || 'Unable to load drivers right now.');
+      } else {
+        setAllDrivers(driversRes.data?.drivers || []);
+      }
+
+      if (!authoredReviewsRes.success) {
+        setMyReviews({});
+        setReviewsError((current) => current || authoredReviewsRes.error || 'Unable to load your reviews right now.');
+      } else {
+        const reviewsMap: Record<string, Review> = {};
+
+        for (const review of authoredReviewsRes.data?.reviews || []) {
+          if (!review.reviewee) {
+            continue;
+          }
+
+          const revieweeId = typeof review.reviewee === 'string' ? review.reviewee : review.reviewee.id;
+          if (revieweeId) {
+            reviewsMap[revieweeId] = review;
+          }
+        }
+
+        setMyReviews(reviewsMap);
+      }
+    } catch (error) {
+      console.error('Error loading reviews:', error);
+      setReviewsError('Unable to load reviews data.');
+    } finally {
+      setIsLoadingReviews(false);
+    }
+  };
+
+  const loadSelectedDriverReviews = async (driverUserId: string) => {
+    setIsLoadingSelectedDriverReviews(true);
+    setSelectedDriverReviews([]);
+    setSelectedDriverReviewsError(null);
+
+    try {
+      const response = await reviewAPI.getUserReviews(driverUserId);
+
+      if (!response.success || !response.data?.reviews) {
+        setSelectedDriverReviewsError(response.error || 'Unable to load reviews for this driver.');
+        return;
+      }
+
+      setSelectedDriverReviews(response.data.reviews);
+    } catch (error) {
+      console.error('Error loading selected driver reviews:', error);
+      setSelectedDriverReviewsError('Unable to load reviews for this driver.');
+    } finally {
+      setIsLoadingSelectedDriverReviews(false);
+    }
+  };
+
+  const openReviews = () => {
+    setSelectedDriverId(null);
+    setSelectedDriverReviews([]);
+    setSelectedDriverReviewsError(null);
+    setReviewForm(emptyReviewForm);
+    setIsReviewsVisible(true);
+    void loadReviewsData();
+  };
+
+  const closeReviews = () => {
+    setIsReviewsVisible(false);
+    setSelectedDriverId(null);
+    setSelectedDriverReviews([]);
+    setSelectedDriverReviewsError(null);
+    setReviewForm(emptyReviewForm);
+  };
+
+  const handleReviewDriver = (driver: DriverProfile) => {
+    const driverUserId = getDriverUserId(driver);
+    if (!driverUserId) {
+      return;
+    }
+
+    if (selectedDriverId === driverUserId) {
+      setSelectedDriverId(null);
+      setSelectedDriverReviews([]);
+      setSelectedDriverReviewsError(null);
+      setReviewForm(emptyReviewForm);
+      return;
+    }
+
+    const existingReview = myReviews[driverUserId];
+    setSelectedDriverId(driverUserId);
+    setReviewForm({
+      revieweeId: driverUserId,
+      rating: existingReview?.rating || 0,
+      comment: existingReview?.comment || '',
+    });
+
+    void loadSelectedDriverReviews(driverUserId);
+  };
+
+  const submitReview = async () => {
+    if (!reviewForm.revieweeId) {
+      showFeedbackAlert('Driver required', 'Choose a driver before saving your review.');
+      return;
+    }
+
+    if (reviewForm.rating === 0) {
+      showFeedbackAlert('Rating required', 'Please select a rating before submitting.');
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    try {
+      const revieweeId = reviewForm.revieweeId;
+      const existingReview = myReviews[reviewForm.revieweeId];
+      let response;
+
+      if (existingReview) {
+        response = await reviewAPI.updateReview(existingReview.id, {
+          rating: reviewForm.rating,
+          comment: reviewForm.comment,
+        });
+      } else {
+        response = await reviewAPI.submitReview({
+          revieweeId: reviewForm.revieweeId,
+          rating: reviewForm.rating,
+          comment: reviewForm.comment,
+          rideId: null, // General review
+        });
+      }
+
+      if (response.success && response.data?.review) {
+        const savedReview = response.data.review;
+
+        setMyReviews((prev) => ({
+          ...prev,
+          [revieweeId]: savedReview,
+        }));
+        setReviewForm((current) => ({
+          ...current,
+          revieweeId,
+          rating: savedReview.rating || current.rating,
+          comment: savedReview.comment || '',
+        }));
+        await loadSelectedDriverReviews(revieweeId);
+        void loadReviewsData();
+        showFeedbackAlert(
+          existingReview ? 'Review updated' : 'Review added',
+          existingReview ? 'Your review has been updated.' : 'Your review has been saved.'
+        );
+      } else {
+        showFeedbackAlert('Error', response.error || 'Failed to save review.');
+      }
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      showFeedbackAlert('Error', 'Something went wrong.');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
   const menuItems: MenuItem[] = [
     {
       icon: 'card-outline',
       title: 'Payment Methods',
-      onPress: () => showFeedbackAlert('Payment Methods', 'Payment methods management coming soon'),
+      description: paymentMethodSummary,
+      onPress: openPaymentMethods,
     },
     {
       icon: 'star-outline',
       title: 'Reviews',
-      onPress: () => showFeedbackAlert('Reviews', 'Reviews section coming soon'),
+      onPress: openReviews,
     },
     {
       icon: 'settings-outline',
@@ -751,12 +1216,14 @@ const ProfileScreen = () => {
     {
       icon: 'help-circle-outline',
       title: 'Help & Support',
-      onPress: () => showFeedbackAlert('Help & Support', 'Help center coming soon'),
+      description: 'Reach the Drive.ly developers team',
+      onPress: openSupport,
     },
     {
       icon: 'information-circle-outline',
       title: 'About',
-      onPress: () => showFeedbackAlert('About Drive.ly', 'Drive.ly - Move Smart Across Africa'),
+      description: 'Learn more about Drive.ly',
+      onPress: openAbout,
     },
   ];
 
@@ -786,10 +1253,12 @@ const ProfileScreen = () => {
           <Text style={styles.name}>{displayUser?.name || 'User'}</Text>
           <Text style={styles.phoneNumber}>{displayUser?.phoneNumber || '+237 XXX XXX XXX'}</Text>
           {displayUser?.email ? <Text style={styles.email}>{displayUser.email}</Text> : null}
-          <View style={styles.ratingContainer}>
-            <Ionicons name="star" size={20} color="#FFD700" />
-            <Text style={styles.rating}>{Number(displayRating).toFixed(1)}</Text>
-          </View>
+          {isDriver ? (
+            <View style={styles.ratingContainer}>
+              <Ionicons name="star" size={20} color="#FFD700" />
+              <Text style={styles.rating}>{Number(displayRating).toFixed(1)}</Text>
+            </View>
+          ) : null}
           <TouchableOpacity style={styles.editButton} onPress={openEditProfile}>
             <Ionicons name="create-outline" size={18} color="#0066FF" />
             <Text style={styles.editButtonText}>Edit profile</Text>
@@ -830,19 +1299,6 @@ const ProfileScreen = () => {
             )}
           </View>
         ) : null}
-
-        <View style={styles.walletCard}>
-          <Text style={styles.walletLabel}>Wallet Balance</Text>
-          <Text style={styles.balance}>
-            {walletBalance} {walletCurrency}
-          </Text>
-          <TouchableOpacity
-            style={styles.addFundsButton}
-                onPress={() => showFeedbackAlert('Add Funds', 'Add funds feature coming soon')}
-          >
-            <Text style={styles.addFundsText}>+ Add Funds</Text>
-          </TouchableOpacity>
-        </View>
 
         <View style={styles.historyCard}>
           <View style={[styles.historyHeaderRow, isCompactScreen && styles.historyHeaderRowCompact]}>
@@ -1139,6 +1595,596 @@ const ProfileScreen = () => {
                               Payment: {ride.paymentStatus ? formatStatusLabel(ride.paymentStatus) : 'Pending'}
                             </Text>
                           </View>
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="slide"
+        visible={isPaymentMethodsVisible}
+        transparent
+        onRequestClose={() => {
+          if (!isSavingPaymentMethod) {
+            setIsPaymentMethodsVisible(false);
+          }
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalWrapper}
+          >
+            <View style={styles.modalCard}>
+              <View style={[styles.modalHeader, isCompactScreen && styles.modalHeaderCompact]}>
+                <View style={styles.modalHeaderCopy}>
+                  <Text style={styles.modalTitle}>Payment Methods</Text>
+                  <Text style={styles.modalSubtitle}>
+                    Pick the mobile money network you want selected by default when ride payments go live.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.closeIconButton}
+                  onPress={() => setIsPaymentMethodsVisible(false)}
+                  disabled={isSavingPaymentMethod}
+                >
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.modalBody}>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  style={styles.modalScrollView}
+                  contentContainerStyle={styles.modalScrollContent}
+                >
+                  <View style={styles.paymentMethodsList}>
+                    {paymentMethodOptions.map((option) => {
+                      const isDefault = option.id === currentDefaultPaymentMethod;
+                      const isPending = option.id === pendingPaymentMethodId;
+
+                      return (
+                        <TouchableOpacity
+                          key={option.id}
+                          style={[styles.paymentMethodRow, isDefault && styles.paymentMethodRowActive]}
+                          onPress={() => {
+                            void handleSelectDefaultPaymentMethod(option.id);
+                          }}
+                          disabled={isSavingPaymentMethod}
+                          activeOpacity={0.9}
+                        >
+                          <View
+                            style={[
+                              styles.paymentMethodBadge,
+                              option.badgeShape === 'pill'
+                                ? styles.paymentMethodBadgePill
+                                : styles.paymentMethodBadgeSquare,
+                              { backgroundColor: option.badgeBackground },
+                            ]}
+                          >
+                            <Text style={[styles.paymentMethodBadgeText, { color: option.badgeTextColor }]}>
+                              {option.badgeText}
+                            </Text>
+                          </View>
+
+                          <View style={styles.paymentMethodCopy}>
+                            <Text style={styles.paymentMethodTitle}>{option.title}</Text>
+                            <Text style={styles.paymentMethodSubtitle}>{option.subtitle}</Text>
+                          </View>
+
+                          <View style={styles.paymentMethodTrailing}>
+                            {isSavingPaymentMethod && isPending ? (
+                              <ActivityIndicator size="small" color="#0066FF" />
+                            ) : isDefault ? (
+                              <>
+                                <View style={styles.paymentMethodDefaultPill}>
+                                  <Text style={styles.paymentMethodDefaultPillText}>Default</Text>
+                                </View>
+                                <Ionicons name="checkmark-circle" size={22} color="#10B981" />
+                              </>
+                            ) : (
+                              <Ionicons name="ellipse-outline" size={22} color="#9CA3AF" />
+                            )}
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  <View style={styles.paymentMethodNote}>
+                    <Ionicons name="information-circle-outline" size={18} color="#0066FF" />
+                    <Text style={styles.paymentMethodNoteText}>
+                      This saves your preferred network for checkout. Ride charges will use Flutterwave mobile money later.
+                    </Text>
+                  </View>
+                </ScrollView>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      <Modal animationType="slide" visible={isSupportVisible} transparent onRequestClose={() => setIsSupportVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalWrapper}
+          >
+            <View style={styles.modalCard}>
+              <View style={[styles.modalHeader, isCompactScreen && styles.modalHeaderCompact]}>
+                <View style={styles.modalHeaderCopy}>
+                  <Text style={styles.modalTitle}>Help & Support</Text>
+                  <Text style={styles.modalSubtitle}>
+                    Need a hand? Reach out to the developers team and we will get back to you.
+                  </Text>
+                </View>
+                <TouchableOpacity style={styles.closeIconButton} onPress={() => setIsSupportVisible(false)}>
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.modalBody}>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  style={styles.modalScrollView}
+                  contentContainerStyle={styles.modalScrollContent}
+                >
+                  <View style={styles.supportHeroCard}>
+                    <View style={styles.supportIconWrap}>
+                      <Ionicons name="headset-outline" size={24} color="#FFFFFF" />
+                    </View>
+                    <Text style={styles.supportHeroTitle}>Drive.ly Developers Team</Text>
+                    <Text style={styles.supportHeroText}>
+                      For now, the quickest way to reach support is by email.
+                    </Text>
+                  </View>
+
+                  <View style={styles.supportContactCard}>
+                    <View style={styles.supportContactHeader}>
+                      <View style={styles.supportMailBadge}>
+                        <Ionicons name="mail-outline" size={22} color="#0066FF" />
+                      </View>
+                      <View style={styles.supportContactCopy}>
+                        <Text style={styles.supportContactLabel}>Developer email</Text>
+                        <Text style={styles.supportContactValue}>sobfred30@gmail.com</Text>
+                      </View>
+                    </View>
+
+                    <Text style={styles.supportFooterText}>
+                      Send your questions, bug reports, or feedback and mention Drive.ly in the subject line.
+                    </Text>
+                  </View>
+                </ScrollView>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      <Modal animationType="slide" visible={isAboutVisible} transparent onRequestClose={() => setIsAboutVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalWrapper}
+          >
+            <View style={styles.modalCard}>
+              <View style={[styles.modalHeader, isCompactScreen && styles.modalHeaderCompact]}>
+                <View style={styles.modalHeaderCopy}>
+                  <Text style={styles.modalTitle}>About Drive.ly</Text>
+                  <Text style={styles.modalSubtitle}>
+                    The full story and product overview will be added here a little later.
+                  </Text>
+                </View>
+                <TouchableOpacity style={styles.closeIconButton} onPress={() => setIsAboutVisible(false)}>
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.modalBody}>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  style={styles.modalScrollView}
+                  contentContainerStyle={styles.modalScrollContent}
+                >
+                  <View style={styles.aboutHeroCard}>
+                    <View style={styles.aboutIconWrap}>
+                      <Ionicons name="information-circle-outline" size={26} color="#FFFFFF" />
+                    </View>
+                    <Text style={styles.aboutHeroTitle}>Drive.ly</Text>
+                    <Text style={styles.aboutHeroText}>
+                      Move Smart Across Africa.
+                    </Text>
+                  </View>
+
+                  <View style={styles.aboutCard}>
+                    <Text style={styles.aboutCardTitle}>About this section</Text>
+                    <Text style={styles.aboutCardText}>
+                      This modal is ready for your final company story, mission, values, and product description.
+                    </Text>
+                    <Text style={styles.aboutCardText}>
+                      When you are ready, we can add the complete About Drive.ly content here without changing the layout.
+                    </Text>
+                  </View>
+                </ScrollView>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      <Modal animationType="slide" visible={isReviewsVisible} transparent onRequestClose={closeReviews}>
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalWrapper}
+          >
+            <View style={styles.modalCard}>
+              <View style={[styles.modalHeader, isCompactScreen && styles.modalHeaderCompact]}>
+                <View style={styles.modalHeaderCopy}>
+                  <Text style={styles.modalTitle}>Reviews</Text>
+                  <Text style={styles.modalSubtitle}>
+                    {isDriver
+                      ? 'See the ratings and feedback passengers have left on your profile.'
+                      : 'Browse drivers, read passenger feedback, and add or edit your own review.'}
+                  </Text>
+                </View>
+                <View style={[styles.historyModalActions, isCompactScreen && styles.historyModalActionsCompact]}>
+                  <TouchableOpacity
+                    style={styles.refreshIconButton}
+                    onPress={() => {
+                      void loadReviewsData();
+
+                      if (selectedDriverId) {
+                        void loadSelectedDriverReviews(selectedDriverId);
+                      }
+                    }}
+                  >
+                    <Ionicons name="refresh" size={20} color="#0066FF" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.closeIconButton} onPress={closeReviews}>
+                    <Ionicons name="close" size={24} color="#666" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.modalBody}>
+                {isLoadingReviews ? (
+                  <View style={styles.historyStateBlock}>
+                    <ActivityIndicator size="small" color="#0066FF" />
+                    <Text style={styles.loadingText}>Loading reviews...</Text>
+                  </View>
+                ) : reviewsError ? (
+                  <View style={styles.historyStateCard}>
+                    <Text style={styles.historyStateTitle}>Could not load reviews</Text>
+                    <Text style={styles.historyStateText}>{reviewsError}</Text>
+                    <TouchableOpacity
+                      style={styles.secondaryButton}
+                      onPress={() => {
+                        void loadReviewsData();
+                      }}
+                    >
+                      <Text style={styles.secondaryButtonText}>Try again</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : isDriver ? (
+                  receivedReviews.length === 0 ? (
+                    <View style={styles.historyStateCard}>
+                      <Text style={styles.historyStateTitle}>No reviews yet</Text>
+                      <Text style={styles.historyStateText}>
+                        Passenger feedback will show up here after completed trips.
+                      </Text>
+                    </View>
+                  ) : (
+                    <ScrollView
+                      showsVerticalScrollIndicator={false}
+                      style={styles.modalScrollView}
+                      contentContainerStyle={styles.modalScrollContent}
+                    >
+                      <View style={styles.reviewSummaryCard}>
+                        <Text style={styles.reviewSummaryLabel}>Passenger rating</Text>
+                        <View style={styles.reviewSummaryRow}>
+                          <Ionicons name="star" size={20} color="#F59E0B" />
+                          <Text style={styles.reviewSummaryValue}>{Number(displayRating).toFixed(1)}</Text>
+                          <Text style={styles.reviewSummaryMeta}>
+                            {receivedReviews.length} review{receivedReviews.length === 1 ? '' : 's'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {receivedReviews.map((review) => {
+                        const reviewer = typeof review.reviewer === 'object' ? review.reviewer : null;
+
+                        return (
+                          <View key={review.id} style={styles.reviewItemCard}>
+                            <View style={[styles.reviewItemHeader, isCompactScreen && styles.reviewItemHeaderCompact]}>
+                              <View style={styles.reviewItemAuthorRow}>
+                                <View style={styles.reviewAvatar}>
+                                  {reviewer?.profileImage ? (
+                                    <Image source={{ uri: reviewer.profileImage }} style={styles.reviewAvatarImage} />
+                                  ) : (
+                                    <Ionicons name="person" size={18} color="#0066FF" />
+                                  )}
+                                </View>
+                                <View style={styles.reviewItemAuthorCopy}>
+                                  <Text style={styles.reviewItemAuthorName}>{reviewer?.name || 'Passenger'}</Text>
+                                  <Text style={styles.reviewItemDate}>{formatReviewDate(review.createdAt)}</Text>
+                                </View>
+                              </View>
+
+                              <View style={styles.reviewRatingBadge}>
+                                <Ionicons name="star" size={14} color="#F59E0B" />
+                                <Text style={styles.reviewRatingBadgeText}>{Number(review.rating).toFixed(1)}</Text>
+                              </View>
+                            </View>
+
+                            <View style={styles.reviewStarsRow}>
+                              {[1, 2, 3, 4, 5].map((value) => (
+                                <Ionicons
+                                  key={`${review.id}-star-${value}`}
+                                  name={value <= Math.round(review.rating) ? 'star' : 'star-outline'}
+                                  size={16}
+                                  color="#F59E0B"
+                                />
+                              ))}
+                            </View>
+
+                            <Text style={review.comment ? styles.reviewItemComment : styles.reviewMutedText}>
+                              {review.comment || 'No written feedback provided for this rating.'}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </ScrollView>
+                  )
+                ) : allDrivers.length === 0 ? (
+                  <View style={styles.historyStateCard}>
+                    <Text style={styles.historyStateTitle}>No drivers found</Text>
+                    <Text style={styles.historyStateText}>
+                      Driver profiles will appear here once drivers complete their setup.
+                    </Text>
+                  </View>
+                ) : (
+                  <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    style={styles.modalScrollView}
+                    contentContainerStyle={styles.modalScrollContent}
+                  >
+                    <View style={styles.reviewSummaryCard}>
+                      <Text style={styles.reviewSummaryLabel}>Driver directory</Text>
+                      <Text style={styles.reviewDirectoryText}>
+                        Tap a driver to read passenger feedback and leave your own rating.
+                      </Text>
+                    </View>
+
+                    {allDrivers.map((driver) => {
+                      const driverUserId = getDriverUserId(driver);
+                      const existingReview = driverUserId ? myReviews[driverUserId] : undefined;
+                      const isSelected = Boolean(driverUserId) && driverUserId === selectedDriverId;
+                      const driverImage = getDriverProfileImage(driver);
+                      const activeComment =
+                        reviewForm.revieweeId === driverUserId ? reviewForm.comment : existingReview?.comment || '';
+                      const activeRating =
+                        reviewForm.revieweeId === driverUserId ? reviewForm.rating : existingReview?.rating || 0;
+
+                      if (!driverUserId) {
+                        return null;
+                      }
+
+                      return (
+                        <View
+                          key={driver.id || driverUserId}
+                          style={[styles.reviewDriverCard, isSelected && styles.reviewDriverCardActive]}
+                        >
+                          <View
+                            style={[styles.reviewDriverHeader, isCompactScreen && styles.reviewDriverHeaderCompact]}
+                          >
+                            <View style={styles.reviewDriverIdentity}>
+                              <View style={styles.reviewAvatar}>
+                                {driverImage ? (
+                                  <Image source={{ uri: driverImage }} style={styles.reviewAvatarImage} />
+                                ) : (
+                                  <Ionicons name="person" size={20} color="#0066FF" />
+                                )}
+                              </View>
+
+                              <View style={styles.reviewDriverCopy}>
+                                <Text style={styles.reviewDriverName}>{getDriverName(driver)}</Text>
+                                <Text style={styles.reviewDriverMeta}>{getDriverDetails(driver)}</Text>
+                                <View style={styles.reviewInlineMeta}>
+                                  <Ionicons name="star" size={14} color="#F59E0B" />
+                                  <Text style={styles.reviewInlineMetaText}>
+                                    {Number(getDriverAverageRating(driver)).toFixed(1)}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+
+                            <TouchableOpacity
+                              style={styles.reviewActionButton}
+                              onPress={() => handleReviewDriver(driver)}
+                            >
+                              <Text style={styles.reviewActionButtonText}>
+                                {isSelected ? 'Close' : existingReview ? 'Edit review' : 'Add review'}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+
+                          <View style={styles.reviewOwnCard}>
+                            <Text style={styles.reviewOwnLabel}>
+                              {existingReview ? 'Your latest review' : 'Your review'}
+                            </Text>
+                            {existingReview ? (
+                              <>
+                                <View style={styles.reviewStarsRow}>
+                                  {[1, 2, 3, 4, 5].map((value) => (
+                                    <Ionicons
+                                      key={`${existingReview.id}-own-star-${value}`}
+                                      name={value <= Math.round(existingReview.rating) ? 'star' : 'star-outline'}
+                                      size={15}
+                                      color="#F59E0B"
+                                    />
+                                  ))}
+                                  <Text style={styles.reviewOwnDate}>{formatReviewDate(existingReview.createdAt)}</Text>
+                                </View>
+                                <Text style={styles.reviewOwnComment}>
+                                  {existingReview.comment || 'You rated this driver without a written comment.'}
+                                </Text>
+                              </>
+                            ) : (
+                              <Text style={styles.reviewMutedText}>You have not reviewed this driver yet.</Text>
+                            )}
+                          </View>
+
+                          {isSelected ? (
+                            <View style={styles.reviewExpandedPanel}>
+                              <Text style={styles.reviewSectionHeading}>
+                                {existingReview
+                                  ? `Edit your review for ${getDriverName(driver)}`
+                                  : `Rate ${getDriverName(driver)}`}
+                              </Text>
+                              <Text style={styles.reviewSectionHint}>
+                                Choose a rating and add a short note if you want.
+                              </Text>
+
+                              <View style={styles.reviewComposerStars}>
+                                {[1, 2, 3, 4, 5].map((value) => (
+                                  <TouchableOpacity
+                                    key={`${driverUserId}-composer-star-${value}`}
+                                    style={styles.reviewStarButton}
+                                    onPress={() =>
+                                      setReviewForm((current) => ({
+                                        ...current,
+                                        revieweeId: driverUserId,
+                                        rating: value,
+                                      }))
+                                    }
+                                  >
+                                    <Ionicons
+                                      name={value <= activeRating ? 'star' : 'star-outline'}
+                                      size={28}
+                                      color="#F59E0B"
+                                    />
+                                  </TouchableOpacity>
+                                ))}
+                              </View>
+
+                              <TextInput
+                                style={[styles.input, styles.reviewCommentInput]}
+                                value={activeComment}
+                                onChangeText={(value) =>
+                                  setReviewForm((current) => ({
+                                    ...current,
+                                    revieweeId: driverUserId,
+                                    comment: value,
+                                  }))
+                                }
+                                placeholder="Share a quick note about the ride experience"
+                                placeholderTextColor="#9CA3AF"
+                                multiline
+                                numberOfLines={4}
+                                textAlignVertical="top"
+                                maxLength={280}
+                              />
+                              <Text style={styles.reviewCharacterHint}>{activeComment.length}/280</Text>
+
+                              <TouchableOpacity
+                                style={[styles.saveButton, styles.reviewSubmitButton]}
+                                onPress={() => {
+                                  void submitReview();
+                                }}
+                                disabled={isSubmittingReview}
+                              >
+                                {isSubmittingReview ? (
+                                  <ActivityIndicator size="small" color="#FFFFFF" />
+                                ) : (
+                                  <Text style={styles.saveButtonText}>
+                                    {existingReview ? 'Update review' : 'Save review'}
+                                  </Text>
+                                )}
+                              </TouchableOpacity>
+
+                              <View style={styles.reviewDivider} />
+
+                              <Text style={styles.reviewSectionHeading}>Recent passenger feedback</Text>
+                              {isLoadingSelectedDriverReviews ? (
+                                <View style={styles.historyStateBlock}>
+                                  <ActivityIndicator size="small" color="#0066FF" />
+                                  <Text style={styles.loadingText}>Loading driver feedback...</Text>
+                                </View>
+                              ) : selectedDriverReviewsError ? (
+                                <Text style={styles.reviewErrorText}>{selectedDriverReviewsError}</Text>
+                              ) : selectedDriverReviews.length === 0 ? (
+                                <Text style={styles.reviewMutedText}>
+                                  No passenger feedback has been published for this driver yet.
+                                </Text>
+                              ) : (
+                                selectedDriverReviews.map((review) => {
+                                  const reviewer = typeof review.reviewer === 'object' ? review.reviewer : null;
+
+                                  return (
+                                    <View key={review.id} style={styles.reviewItemCard}>
+                                      <View
+                                        style={[
+                                          styles.reviewItemHeader,
+                                          isCompactScreen && styles.reviewItemHeaderCompact,
+                                        ]}
+                                      >
+                                        <View style={styles.reviewItemAuthorRow}>
+                                          <View style={styles.reviewAvatar}>
+                                            {reviewer?.profileImage ? (
+                                              <Image
+                                                source={{ uri: reviewer.profileImage }}
+                                                style={styles.reviewAvatarImage}
+                                              />
+                                            ) : (
+                                              <Ionicons name="person" size={18} color="#0066FF" />
+                                            )}
+                                          </View>
+                                          <View style={styles.reviewItemAuthorCopy}>
+                                            <Text style={styles.reviewItemAuthorName}>
+                                              {reviewer?.name || 'Passenger'}
+                                            </Text>
+                                            <Text style={styles.reviewItemDate}>
+                                              {formatReviewDate(review.createdAt)}
+                                            </Text>
+                                          </View>
+                                        </View>
+
+                                        <View style={styles.reviewRatingBadge}>
+                                          <Ionicons name="star" size={14} color="#F59E0B" />
+                                          <Text style={styles.reviewRatingBadgeText}>
+                                            {Number(review.rating).toFixed(1)}
+                                          </Text>
+                                        </View>
+                                      </View>
+
+                                      <View style={styles.reviewStarsRow}>
+                                        {[1, 2, 3, 4, 5].map((value) => (
+                                          <Ionicons
+                                            key={`${review.id}-selected-star-${value}`}
+                                            name={value <= Math.round(review.rating) ? 'star' : 'star-outline'}
+                                            size={16}
+                                            color="#F59E0B"
+                                          />
+                                        ))}
+                                      </View>
+
+                                      <Text style={review.comment ? styles.reviewItemComment : styles.reviewMutedText}>
+                                        {review.comment || 'No written feedback provided for this rating.'}
+                                      </Text>
+                                    </View>
+                                  );
+                                })
+                              )}
+                            </View>
+                          ) : null}
                         </View>
                       );
                     })}
@@ -1464,35 +2510,6 @@ const styles = StyleSheet.create({
     color: '#0066FF',
     fontWeight: '600',
   },
-  walletCard: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    backgroundColor: '#0066FF',
-    borderRadius: 24,
-    padding: 22,
-  },
-  walletLabel: {
-    color: '#DCE9FF',
-    fontSize: 15,
-  },
-  balance: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginTop: 12,
-  },
-  addFundsButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 18,
-  },
-  addFundsText: {
-    color: '#0066FF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
   historyCard: {
     marginHorizontal: 16,
     marginBottom: 16,
@@ -1664,7 +2681,7 @@ const styles = StyleSheet.create({
     minHeight: 0,
   },
   modalScrollContent: {
-    paddingBottom: 8,
+    paddingBottom: 28,
   },
   fieldGroup: {
     marginBottom: 16,
@@ -1867,6 +2884,441 @@ const styles = StyleSheet.create({
   ridePayment: {
     color: '#6B7280',
     fontSize: 13,
+  },
+  paymentMethodsList: {
+    gap: 12,
+  },
+  paymentMethodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  paymentMethodRowActive: {
+    borderColor: '#93C5FD',
+    backgroundColor: '#F8FBFF',
+  },
+  paymentMethodBadge: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+    overflow: 'hidden',
+  },
+  paymentMethodBadgePill: {
+    width: 58,
+    height: 40,
+    borderRadius: 999,
+  },
+  paymentMethodBadgeSquare: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+  },
+  paymentMethodBadgeText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  paymentMethodCopy: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  paymentMethodTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  paymentMethodSubtitle: {
+    marginTop: 4,
+    color: '#6B7280',
+    lineHeight: 19,
+  },
+  paymentMethodTrailing: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  paymentMethodDefaultPill: {
+    backgroundColor: '#E0F2FE',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 6,
+  },
+  paymentMethodDefaultPillText: {
+    color: '#0369A1',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  paymentMethodNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 18,
+    marginBottom: 8,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: '#EFF6FF',
+  },
+  paymentMethodNoteText: {
+    flex: 1,
+    color: '#1E3A8A',
+    lineHeight: 20,
+  },
+  supportHeroCard: {
+    borderRadius: 22,
+    padding: 22,
+    backgroundColor: '#0066FF',
+  },
+  supportIconWrap: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  supportHeroTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  supportHeroText: {
+    marginTop: 8,
+    color: '#DCE9FF',
+    lineHeight: 22,
+  },
+  supportContactCard: {
+    marginTop: 16,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F8FAFC',
+  },
+  supportContactHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  supportMailBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: '#EAF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  supportContactCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  supportContactLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  supportContactValue: {
+    marginTop: 6,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    lineHeight: 22,
+    flexShrink: 1,
+  },
+  supportFooterText: {
+    marginTop: 16,
+    color: '#4B5563',
+    lineHeight: 21,
+  },
+  aboutHeroCard: {
+    borderRadius: 22,
+    padding: 22,
+    backgroundColor: '#111827',
+  },
+  aboutIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  aboutHeroTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  aboutHeroText: {
+    marginTop: 8,
+    color: '#D1D5DB',
+    lineHeight: 22,
+  },
+  aboutCard: {
+    marginTop: 16,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F8FAFC',
+  },
+  aboutCardTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 10,
+  },
+  aboutCardText: {
+    color: '#4B5563',
+    lineHeight: 21,
+    marginBottom: 10,
+  },
+  reviewSummaryCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 14,
+  },
+  reviewSummaryLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 8,
+  },
+  reviewSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  reviewSummaryValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  reviewSummaryMeta: {
+    color: '#4B5563',
+    fontSize: 14,
+  },
+  reviewDirectoryText: {
+    color: '#4B5563',
+    lineHeight: 20,
+  },
+  reviewDriverCard: {
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  reviewDriverCardActive: {
+    borderColor: '#93C5FD',
+    backgroundColor: '#F8FBFF',
+  },
+  reviewDriverHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  reviewDriverHeaderCompact: {
+    flexDirection: 'column',
+  },
+  reviewDriverIdentity: {
+    flexDirection: 'row',
+    flex: 1,
+    alignItems: 'center',
+  },
+  reviewDriverCopy: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  reviewDriverName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  reviewDriverMeta: {
+    color: '#4B5563',
+    marginTop: 4,
+    lineHeight: 20,
+  },
+  reviewInlineMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  reviewInlineMetaText: {
+    color: '#374151',
+    marginLeft: 6,
+    fontWeight: '600',
+  },
+  reviewActionButton: {
+    backgroundColor: '#EEF4FF',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  reviewActionButtonText: {
+    color: '#0066FF',
+    fontWeight: '700',
+  },
+  reviewAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#EAF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  reviewAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  reviewOwnCard: {
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: '#F8FAFC',
+  },
+  reviewOwnLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  reviewOwnDate: {
+    color: '#6B7280',
+    fontSize: 12,
+    marginLeft: 10,
+  },
+  reviewOwnComment: {
+    color: '#374151',
+    lineHeight: 20,
+    marginTop: 8,
+  },
+  reviewExpandedPanel: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#DBEAFE',
+  },
+  reviewSectionHeading: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  reviewSectionHint: {
+    color: '#6B7280',
+    lineHeight: 20,
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  reviewComposerStars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  reviewStarButton: {
+    marginRight: 8,
+  },
+  reviewCommentInput: {
+    minHeight: 112,
+    paddingTop: 14,
+  },
+  reviewCharacterHint: {
+    alignSelf: 'flex-end',
+    color: '#6B7280',
+    fontSize: 12,
+    marginTop: 8,
+  },
+  reviewSubmitButton: {
+    flex: 0,
+    marginTop: 12,
+  },
+  reviewDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 18,
+  },
+  reviewErrorText: {
+    color: '#B91C1C',
+    lineHeight: 20,
+  },
+  reviewItemCard: {
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  reviewItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  reviewItemHeaderCompact: {
+    flexDirection: 'column',
+  },
+  reviewItemAuthorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  reviewItemAuthorCopy: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  reviewItemAuthorName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  reviewItemDate: {
+    color: '#6B7280',
+    fontSize: 12,
+    marginTop: 3,
+  },
+  reviewRatingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF7ED',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  reviewRatingBadgeText: {
+    color: '#C2410C',
+    fontWeight: '700',
+    marginLeft: 6,
+  },
+  reviewStarsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  reviewItemComment: {
+    color: '#374151',
+    lineHeight: 21,
+    marginTop: 10,
+  },
+  reviewMutedText: {
+    color: '#6B7280',
+    lineHeight: 20,
+    marginTop: 8,
   },
 });
 

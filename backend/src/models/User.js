@@ -16,6 +16,9 @@ const DEFAULT_USER_SETTINGS = {
   security: {
     loginAlerts: true,
   },
+  payments: {
+    defaultMethod: null,
+  },
 };
 
 function cloneDefaultSettings() {
@@ -42,6 +45,10 @@ function normalizeSettings(settings) {
       ...base.security,
       ...(settings.security && typeof settings.security === 'object' ? settings.security : {}),
     },
+    payments: {
+      ...base.payments,
+      ...(settings.payments && typeof settings.payments === 'object' ? settings.payments : {}),
+    },
   };
 }
 
@@ -62,6 +69,10 @@ function mergeUserSettings(currentSettings, updates) {
     security: {
       ...parseUserSettings(currentSettings).security,
       ...(updates?.security && typeof updates.security === 'object' ? updates.security : {}),
+    },
+    payments: {
+      ...parseUserSettings(currentSettings).payments,
+      ...(updates?.payments && typeof updates.payments === 'object' ? updates.payments : {}),
     },
   });
 }
