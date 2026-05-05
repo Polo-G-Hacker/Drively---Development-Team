@@ -1,0 +1,346 @@
+Starting project at C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\mobile-clean
+React Compiler enabled
+Starting Metro Bundler
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Waiting on http://localhost:8082
+Logs for your project will appear below.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓░░░░░░░░░░░░ 25.0% ( 6/12)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  5.0% ( 13/110)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓░░░░░░░░░░░ 34.0% ( 7/12)
+λ node_modules\expo-router\node\render.js ▓░░░░░░░░░░░░░░░  6.9% ( 41/199)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓░░░░░░░░░░░ 34.0% (20/36)
+λ node_modules\expo-router\node\render.js ▓▓▓▓░░░░░░░░░░░░ 25.8% (187/368)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓░░░░░░░░░░░ 34.5% ( 29/107)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓░░░░░░░░ 54.1% (378/514)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓░░░░░░░░░░░ 34.5% (122/280)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 56.5% (495/660)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓░░░░░░░░░░░ 34.5% (126/285)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 60.6% (608/790)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓░░░░░░░░░░░ 35.2% (216/364)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 62.5% (635/803)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 45.9% (285/454)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 72.2% (762/909)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 46.9% (433/632)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 75.7% (851/978)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 48.2% (456/657)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 85.3% ( 940/1018)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 51.4% (573/799)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 86.6% ( 987/1080)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 68.9% (746/899)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 89.5% (1075/1155)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 76.6% ( 875/1000)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 91.8% (1145/1195)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 87.2% ( 983/1054)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 92.7% (1189/1235)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 98.9% (1251/1258)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 97.4% (1277/1299)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundling failed 54235ms node_modules\expo-router\node\render.js (1 module)
+λ Bundling failed 51364ms node_modules\expo-router\node\render.js (1 module)
+λ Bundling failed 54240ms node_modules\expo-router\node\render.js (1299 modules)
+Web Bundling failed 54255ms node_modules\expo-router\entry.js (1 module)
+Web Bundling failed 51382ms node_modules\expo-router\entry.js (1 module)
+Web Bundling failed 54262ms node_modules\expo-router\entry.js (1271 modules)
+
+Metro error: Importing native-only module "react-native/Libraries/Utilities/codegenNativeCommands" on web from: node_modules\react-native-maps\lib\MapMarkerNativeComponent.js
+
+Import stack:
+
+ node_modules\react-native-maps\lib\MapMarkerNativeComponent.js
+ | import "react-native/Libraries/Utilities/codegenNativeCommands"
+           ^ Importing react-native internals is not supported on web.
+
+ node_modules\react-native-maps\lib\MapMarker.js
+ | import "./MapMarkerNativeComponent"
+
+ node_modules\react-native-maps\lib\index.js
+ | import "./MapMarker"
+
+ app\(tabs)\index.tsx
+ | import "react-native-maps"
+
+ app (require.context)
+
+
+Import stack:
+
+ node_modules\react-native-maps\lib\MapMarkerNativeComponent.js
+ | import "react-native/Libraries/Utilities/codegenNativeCommands"
+           ^ Importing react-native internals is not supported on web.
+
+ node_modules\react-native-maps\lib\MapMarker.js
+ | import "./MapMarkerNativeComponent"
+
+ node_modules\react-native-maps\lib\index.js
+ | import "./MapMarker"
+
+ app\(tabs)\index.tsx
+ | import "react-native-maps"
+
+ app (require.context)
+
+
+Import stack:
+
+ node_modules\react-native-maps\lib\MapMarkerNativeComponent.js
+ | import "react-native/Libraries/Utilities/codegenNativeCommands"
+           ^ Importing react-native internals is not supported on web.
+
+ node_modules\react-native-maps\lib\MapMarker.js
+ | import "./MapMarkerNativeComponent"
+
+ node_modules\react-native-maps\lib\index.js
+ | import "./MapMarker"
+
+ app\(tabs)\index.tsx
+ | import "react-native-maps"
+
+ app (require.context)
+
+
+
+
+Metro error: Importing native-only module "react-native/Libraries/Utilities/codegenNativeCommands" on web from: node_modules\react-native-maps\lib\MapMarkerNativeComponent.js
+
+Import stack:
+
+ node_modules\react-native-maps\lib\MapMarkerNativeComponent.js
+ | import "react-native/Libraries/Utilities/codegenNativeCommands"
+           ^ Importing react-native internals is not supported on web.
+
+ node_modules\react-native-maps\lib\MapMarker.js
+ | import "./MapMarkerNativeComponent"
+
+ node_modules\react-native-maps\lib\index.js
+ | import "./MapMarker"
+
+ app\(tabs)\index.tsx
+ | import "react-native-maps"
+
+ app (require.context)
+
+
+Import stack:
+
+ node_modules\react-native-maps\lib\MapMarkerNativeComponent.js
+ | import "react-native/Libraries/Utilities/codegenNativeCommands"
+           ^ Importing react-native internals is not supported on web.
+
+ node_modules\react-native-maps\lib\MapMarker.js
+ | import "./MapMarkerNativeComponent"
+
+ node_modules\react-native-maps\lib\index.js
+ | import "./MapMarker"
+
+ app\(tabs)\index.tsx
+ | import "react-native-maps"
+
+ app (require.context)
+
+
+Import stack:
+
+ node_modules\react-native-maps\lib\MapMarkerNativeComponent.js
+ | import "react-native/Libraries/Utilities/codegenNativeCommands"
+           ^ Importing react-native internals is not supported on web.
+
+ node_modules\react-native-maps\lib\MapMarker.js
+ | import "./MapMarkerNativeComponent"
+
+ node_modules\react-native-maps\lib\index.js
+ | import "./MapMarker"
+
+ app\(tabs)\index.tsx
+ | import "react-native-maps"
+
+ app (require.context)
+
+
+
+
+Metro error: Importing native-only module "react-native/Libraries/Utilities/codegenNativeCommands" on web from: node_modules\react-native-maps\lib\MapMarkerNativeComponent.js
+
+Import stack:
+
+ node_modules\react-native-maps\lib\MapMarkerNativeComponent.js
+ | import "react-native/Libraries/Utilities/codegenNativeCommands"
+           ^ Importing react-native internals is not supported on web.
+
+ node_modules\react-native-maps\lib\MapMarker.js
+ | import "./MapMarkerNativeComponent"
+
+ node_modules\react-native-maps\lib\index.js
+ | import "./MapMarker"
+
+ app\(tabs)\index.tsx
+ | import "react-native-maps"
+
+ app (require.context)
+
+
+Import stack:
+
+ node_modules\react-native-maps\lib\MapMarkerNativeComponent.js
+ | import "react-native/Libraries/Utilities/codegenNativeCommands"
+           ^ Importing react-native internals is not supported on web.
+
+ node_modules\react-native-maps\lib\MapMarker.js
+ | import "./MapMarkerNativeComponent"
+
+ node_modules\react-native-maps\lib\index.js
+ | import "./MapMarker"
+
+ app\(tabs)\index.tsx
+ | import "react-native-maps"
+
+ app (require.context)
+
+
+Import stack:
+
+ node_modules\react-native-maps\lib\MapMarkerNativeComponent.js
+ | import "react-native/Libraries/Utilities/codegenNativeCommands"
+           ^ Importing react-native internals is not supported on web.
+
+ node_modules\react-native-maps\lib\MapMarker.js
+ | import "./MapMarkerNativeComponent"
+
+ node_modules\react-native-maps\lib\index.js
+ | import "./MapMarker"
+
+ app\(tabs)\index.tsx
+ | import "react-native-maps"
+
+ app (require.context)
+
+
+
+Web node_modules\expo-router\_error.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 78.4% (234/272)
+Web node_modules\expo-router\_error.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 93.7% (301/311)
+Web node_modules\expo-router\_error.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 9779ms node_modules\expo-router\_error.js (323 modules)
+Web Bundled 5854ms node_modules\expo-router\_error.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+ LOG  [web] Logs will appear in the browser console
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 68.8% (728/878)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 72.5% (825/969)
+λ Bundling failed 4836ms node_modules\expo-router\node\render.js (1241 modules)
+Web Bundling failed 4842ms node_modules\expo-router\entry.js (1264 modules)
+
+Metro error: Importing native-only module "react-native/Libraries/Utilities/codegenNativeCommands" on web from: node_modules\react-native-maps\lib\MapMarkerNativeComponent.js
+
+Import stack:
+
+ node_modules\react-native-maps\lib\MapMarkerNativeComponent.js
+ | import "react-native/Libraries/Utilities/codegenNativeCommands"
+           ^ Importing react-native internals is not supported on web.
+
+ node_modules\react-native-maps\lib\MapMarker.js
+ | import "./MapMarkerNativeComponent"
+
+ node_modules\react-native-maps\lib\index.js
+ | import "./MapMarker"
+
+ app\(tabs)\index.tsx
+ | import "react-native-maps"
+
+ app (require.context)
+
+
+
+Web Bundled 52ms node_modules\expo-router\_error.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 73.1% (743/869)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 78.3% (877/991)
+λ Bundled 5181ms node_modules\expo-router\node\render.js (1287 modules)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1251/1251)
+Web Bundled 10720ms node_modules\expo-router\entry.js (1251 modules)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1251/1251)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓░░░░░░░░░░░ 37.5% (153/320)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 45.0% (342/523)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 53.0% (545/751)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 59.6% (679/892)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 67.8% (800/974)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 84.9% ( 979/1065)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 95.2% (1163/1195)
+Web Bundled 26012ms node_modules\expo-router\entry.js (1252 modules)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 175ms node_modules\expo-router\node\render.js (1 module)
+Web Bundled 2492ms node_modules\expo-router\entry.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 106ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 134ms node_modules\expo-router\node\render.js (1 module)
+Web Bundled 2248ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 290ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console

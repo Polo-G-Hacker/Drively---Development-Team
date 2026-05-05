@@ -1,12 +1,18 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { useAuth } from '../contexts/auth-context';
 
 const SplashScreen = () => {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+
+  // Static web rendering can't know the AsyncStorage-backed auth state ahead of time,
+  // so redirect to a stable login route and let that screen handle authenticated users.
+  if (Platform.OS === 'web') {
+    return <Redirect href="/login" />;
+  }
 
   useEffect(() => {
     if (!isLoading) {

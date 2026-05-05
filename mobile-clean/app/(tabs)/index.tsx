@@ -16,22 +16,17 @@ import { useAuth } from '../../contexts/auth-context';
 import { rideAPI } from '../../services/api/api-client';
 import { initializeSocket, listenForRideUpdates, removeRideListeners } from '../../services/socket/socket-client';
 import { useRouter } from 'expo-router';
-
-let MapView, Marker;
-if (Platform.OS !== 'web') {
-  const maps = require('react-native-maps');
-  MapView = maps.default;
-  Marker = maps.Marker;
-}
+import { RideMap } from '../../components/ride-map';
+import type { RideLocation, RideMapRegion } from '../../components/ride-map.types';
 
 const HomeScreen = () => {
   const router = useRouter();
-  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [location, setLocation] = useState<RideLocation | null>(null);
   const [destination, setDestination] = useState('');
   const [vehicleType, setVehicleType] = useState('car');
   const [matches, setMatches] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [region, setRegion] = useState({
+  const [region, setRegion] = useState<RideMapRegion>({
     latitude: 3.848,
     longitude: 11.502,
     latitudeDelta: 0.0922,
@@ -55,19 +50,24 @@ const HomeScreen = () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
+        const settingsAction =
+          Platform.OS === 'web'
+            ? undefined
+            : {
+                text: 'Open Settings',
+                onPress: () => {
+                  if (Platform.OS === 'ios') {
+                    Linking.openURL('app-settings:');
+                  } else {
+                    Linking.openSettings();
+                  }
+                },
+              };
+
         Alert.alert(
           'Location Permission Required',
           'Please enable location permission in your device settings to use Drive.ly. This is required to find nearby drivers and track your ride.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Open Settings', onPress: () => {
-              if (Platform.OS === 'ios') {
-                Linking.openURL('app-settings:');
-              } else {
-                Linking.openSettings();
-              }
-            }}  
-          ]
+          [{ text: 'Cancel', style: 'cancel' }, ...(settingsAction ? [settingsAction] : [])]
         );
         return false;
       }
@@ -191,27 +191,11 @@ const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
-      {Platform.OS !== 'web' && MapView && (
-        <MapView
-          style={styles.map}
-          region={region}
-          onRegionChangeComplete={setRegion}
-        >
-          {location && (
-            <Marker
-              coordinate={location}
-              title="Your Location"
-              description="Pickup point"
-            />
-          )}
-        </MapView>
-      )}
-      {Platform.OS === 'web' && (
-        <View style={styles.webMapPlaceholder}>
-          <Text style={styles.webMapText}>Map not available on web preview</Text>
-          <Text style={styles.webMapSubtext}>Use Expo Go on your phone to see the map</Text>
-        </View>
-      )}
+      <RideMap
+        location={location}
+        region={region}
+        onRegionChangeComplete={setRegion}
+      />
 
       <View style={styles.zoomButtonsContainer}>
         <TouchableOpacity style={styles.zoomButton} onPress={handleZoomIn}>
@@ -423,22 +407,6 @@ const styles = StyleSheet.create({
   rideEta: {
     fontSize: 14,
     color: '#666',
-  },
-  webMapPlaceholder: {
-    height: 300,
-    backgroundColor: '#E0E0E0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  webMapText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#666',
-  },
-  webMapSubtext: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 5,
   },
   requestButton: {
     backgroundColor: '#0066FF',

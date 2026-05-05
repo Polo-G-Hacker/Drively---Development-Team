@@ -4,8 +4,18 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_CONFIG, API_ENDPOINTS } from '../../config/api-config';
-import type { ApiResponse, User, Ride, DriverProfile, Community, Transaction, PaymentData } from '../../types';
+import { API_CONFIG, API_ENDPOINTS, fetchWithTimeout } from '../../config/api-config';
+import type {
+  ApiResponse,
+  User,
+  Ride,
+  DriverProfile,
+  Community,
+  Transaction,
+  PaymentData,
+  UserSettings,
+  Review,
+} from '../../types';
 
 /**
  * Generic API call function
@@ -18,7 +28,7 @@ async function apiCall<T>(
   try {
     const token = await AsyncStorage.getItem('token');
     
-    const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, {
+    const response = await fetchWithTimeout(`${API_CONFIG.BASE_URL}${endpoint}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -27,7 +37,7 @@ async function apiCall<T>(
       },
     });
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
 
     if (response.ok) {
       return { success: true, data };
@@ -36,7 +46,11 @@ async function apiCall<T>(
     }
   } catch (error) {
     console.error('API call error:', error);
-    return { success: false, error: (error as Error).message };
+    const message =
+      error instanceof Error && error.name === 'AbortError'
+        ? `Request timed out. Check that the backend is running at ${API_CONFIG.BASE_URL}.`
+        : (error as Error).message;
+    return { success: false, error: message };
   }
 }
 
@@ -61,6 +75,20 @@ export const authAPI = {
   getMe: async () => {
     return apiCall<{ user: User }>(API_ENDPOINTS.AUTH.ME, {
       method: 'GET',
+    });
+  },
+
+  updateSettings: async (settings: UserSettings) => {
+    return apiCall<{ message: string; user: User }>(API_ENDPOINTS.AUTH.SETTINGS, {
+      method: 'PATCH',
+      body: JSON.stringify({ settings }),
+    });
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string, confirmPassword: string) => {
+    return apiCall<{ message: string; user: User }>(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, {
+      method: 'PATCH',
+      body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
     });
   },
 
@@ -110,7 +138,7 @@ export const rideAPI = {
   },
 
   getRideHistory: async () => {
-    return apiCall<Ride[]>(API_ENDPOINTS.RIDES.HISTORY, {
+    return apiCall<{ rides: Ride[] }>(API_ENDPOINTS.RIDES.HISTORY, {
       method: 'GET',
     });
   },
@@ -120,16 +148,39 @@ export const rideAPI = {
  * Drivers API
  */
 export const driverAPI = {
+  getAllDrivers: async () => {
+    return apiCall<{ drivers: DriverProfile[] }>(API_ENDPOINTS.DRIVERS.LIST, {
+      method: 'GET',
+    });
+  },
+
   createProfile: async (data: { vehicleModel: string; vehiclePlateNumber: string; vehicleColor: string }) => {
-    return apiCall<DriverProfile>(API_ENDPOINTS.DRIVERS.CREATE_PROFILE, {
+    return apiCall<{ message: string; driver: DriverProfile }>(API_ENDPOINTS.DRIVERS.CREATE_PROFILE, {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
   getProfile: async () => {
-    return apiCall<DriverProfile>(API_ENDPOINTS.DRIVERS.GET_PROFILE, {
+    return apiCall<{ driver: DriverProfile }>(API_ENDPOINTS.DRIVERS.GET_PROFILE, {
       method: 'GET',
+    });
+  },
+
+  updateProfile: async (data: {
+    name?: string;
+    phoneNumber?: string;
+    email?: string | null;
+    profileImage?: string | null;
+    vehicleType?: 'car' | 'bike' | 'minibus';
+    vehicleModel?: string;
+    vehiclePlateNumber?: string;
+    vehicleColor?: string;
+    licenseNumber?: string;
+  }) => {
+    return apiCall<{ message: string; driver?: DriverProfile | null; user?: User }>(API_ENDPOINTS.DRIVERS.GET_PROFILE, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
     });
   },
 
@@ -163,8 +214,20 @@ export const driverAPI = {
  */
 export const passengerAPI = {
   getProfile: async () => {
-    return apiCall<User>(API_ENDPOINTS.PASSENGERS.GET_PROFILE, {
+    return apiCall<{ user: User }>(API_ENDPOINTS.PASSENGERS.GET_PROFILE, {
       method: 'GET',
+    });
+  },
+
+  updateProfile: async (data: {
+    name?: string;
+    phoneNumber?: string;
+    email?: string | null;
+    profileImage?: string | null;
+  }) => {
+    return apiCall<{ message: string; user: User }>(API_ENDPOINTS.PASSENGERS.GET_PROFILE, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
     });
   },
 
@@ -216,6 +279,54 @@ export const paymentAPI = {
   addFunds: async (data: { amount: number; paymentDetails: any }) => {
     return apiCall<PaymentData>(API_ENDPOINTS.PAYMENTS.ADD_FUNDS, {
       method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+/**
+ * Reviews API
+ */
+export const reviewAPI = {
+  getMyReviews: async () => {
+    return apiCall<{ reviews: Review[] }>(API_ENDPOINTS.REVIEWS.ME, {
+      method: 'GET',
+    });
+  },
+
+  getAuthoredReviews: async () => {
+    return apiCall<{ reviews: Review[] }>(API_ENDPOINTS.REVIEWS.AUTHORED, {
+      method: 'GET',
+    });
+  },
+
+  getMyReviewForUser: async (revieweeId: string) => {
+    return apiCall<{ review: Review | null }>(API_ENDPOINTS.REVIEWS.MY_REVIEW(revieweeId), {
+      method: 'GET',
+    });
+  },
+
+  getUserReviews: async (userId: string) => {
+    return apiCall<{ reviews: Review[] }>(API_ENDPOINTS.REVIEWS.USER(userId), {
+      method: 'GET',
+    });
+  },
+
+  submitReview: async (data: {
+    rideId?: string | null;
+    revieweeId: string;
+    rating: number;
+    comment?: string;
+  }) => {
+    return apiCall<{ message: string; review: Review }>(API_ENDPOINTS.REVIEWS.SUBMIT, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateReview: async (reviewId: string, data: { rating?: number; comment?: string }) => {
+    return apiCall<{ message: string; review: Review }>(API_ENDPOINTS.REVIEWS.UPDATE(reviewId), {
+      method: 'PUT',
       body: JSON.stringify(data),
     });
   },

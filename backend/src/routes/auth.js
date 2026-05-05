@@ -6,141 +6,199 @@ const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Register
-router.post('/register', [
-  body('phoneNumber').trim().notEmpty().withMessage('Phone number is required'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('name').trim().notEmpty().withMessage('Name is required'),
-  body('role').isIn(['driver', 'passenger']).withMessage('Role must be driver or passenger')
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+function buildAuthUserPayload(user) {
+  return {
+    id: user.id,
+    _id: user._id,
+    phoneNumber: user.phoneNumber,
+    name: user.name,
+    role: user.role,
+    email: user.email || null,
+    profileImage: user.profileImage || null,
+    rating: user.rating,
+    isVerified: user.isVerified,
+    wallet: user.wallet,
+    settings: user.settings,
+  };
+}
 
-    const { phoneNumber, password, name, role } = req.body;
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ phoneNumber });
-    if (existingUser) {
-      return res.status(400).json({ error: 'User with this phone number already exists' });
-    }
-
-    // Create new user
-    const user = new User({
-      phoneNumber,
-      password,
-      name,
-      role
-    });
-
-    await user.save();
-
-    // Generate token
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.status(201).json({
-      message: 'User registered successfully',
-      token,
-      user: {
-        id: user._id,
-        phoneNumber: user.phoneNumber,
-        name: user.name,
-        role: user.role
+router.post(
+  '/register',
+  [
+    body('phoneNumber').trim().notEmpty().withMessage('Phone number is required'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    body('name').trim().notEmpty().withMessage('Name is required'),
+    body('role').isIn(['driver', 'passenger']).withMessage('Role must be driver or passenger'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
       }
-    });
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Registration failed' });
-  }
-});
 
-// Login
-router.post('/login', [
-  body('phoneNumber').trim().notEmpty().withMessage('Phone number is required'),
-  body('password').notEmpty().withMessage('Password is required')
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+      const { phoneNumber, password, name, role, email } = req.body;
+      const existingUser = await User.findByPhoneNumber(phoneNumber);
 
-    const { phoneNumber, password } = req.body;
-
-    // Find user
-    const user = await User.findOne({ phoneNumber });
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    // Check password
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    // Update online status
-    user.isOnline = true;
-    await user.save();
-
-    // Generate token
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.json({
-      message: 'Login successful',
-      token,
-      user: {
-        id: user._id,
-        phoneNumber: user.phoneNumber,
-        name: user.name,
-        role: user.role,
-        rating: user.rating,
-        wallet: user.wallet
+      if (existingUser) {
+        return res.status(400).json({ error: 'User with this phone number already exists' });
       }
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
-  }
-});
 
-// Get current user
+      const user = await User.create({ phoneNumber, password, name, role, email });
+      const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET, {
+        expiresIn: '7d',
+      });
+
+      return res.status(201).json({
+        message: 'User registered successfully',
+        token,
+        user: buildAuthUserPayload(user),
+      });
+    } catch (error) {
+      console.error('Registration error:', error);
+      return res.status(500).json({ error: 'Registration failed' });
+    }
+  }
+);
+
+router.post(
+  '/login',
+  [
+    body('phoneNumber').trim().notEmpty().withMessage('Phone number is required'),
+    body('password').notEmpty().withMessage('Password is required'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { phoneNumber, password } = req.body;
+      const user = await User.findByPhoneNumber(phoneNumber, { includePassword: true });
+
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      const isMatch = await User.comparePassword(user, password);
+      if (!isMatch) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      const onlineUser = await User.updateOnlineStatus(user.id, true);
+      const token = jwt.sign({ userId: onlineUser.id, role: onlineUser.role }, process.env.JWT_SECRET, {
+        expiresIn: '7d',
+      });
+
+      return res.json({
+        message: 'Login successful',
+        token,
+        user: buildAuthUserPayload(onlineUser),
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      return res.status(500).json({ error: 'Login failed' });
+    }
+  }
+);
+
 router.get('/me', auth, async (req, res) => {
-  try {
-    res.json({
-      user: {
-        id: req.user._id,
-        phoneNumber: req.user.phoneNumber,
-        name: req.user.name,
-        role: req.user.role,
-        rating: req.user.rating,
-        isVerified: req.user.isVerified,
-        wallet: req.user.wallet
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch user data' });
-  }
+  return res.json({
+    user: buildAuthUserPayload(req.user),
+  });
 });
 
-// Logout
+router.patch(
+  '/settings',
+  auth,
+  [
+    body('settings').isObject().withMessage('Settings are required'),
+    body('settings.notifications.rideUpdates').optional().isBoolean().withMessage('Ride updates preference must be a boolean'),
+    body('settings.notifications.smsUpdates').optional().isBoolean().withMessage('SMS updates preference must be a boolean'),
+    body('settings.notifications.promotions').optional().isBoolean().withMessage('Promotions preference must be a boolean'),
+    body('settings.privacy.shareLiveLocation').optional().isBoolean().withMessage('Location sharing preference must be a boolean'),
+    body('settings.privacy.communityVisibility').optional().isBoolean().withMessage('Community visibility preference must be a boolean'),
+    body('settings.security.loginAlerts').optional().isBoolean().withMessage('Login alert preference must be a boolean'),
+    body('settings.payments.defaultMethod')
+      .optional({ nullable: true })
+      .custom((value) => value === null || ['mtn_momo', 'orange_money'].includes(value))
+      .withMessage('Default payment method must be MTN Mobile Money or Orange Money'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const updatedUser = await User.updateById(req.user.id, {
+        settings: req.body.settings,
+      });
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      return res.json({
+        message: 'Settings updated successfully',
+        user: buildAuthUserPayload(updatedUser),
+      });
+    } catch (error) {
+      console.error('Update settings error:', error);
+      return res.status(500).json({ error: 'Failed to update settings' });
+    }
+  }
+);
+
+router.patch(
+  '/password',
+  auth,
+  [
+    body('currentPassword').notEmpty().withMessage('Current password is required'),
+    body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
+    body('confirmPassword')
+      .notEmpty()
+      .withMessage('Please confirm your new password')
+      .custom((value, { req }) => value === req.body.newPassword)
+      .withMessage('Password confirmation does not match'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const updatedUser = await User.updatePassword(req.user.id, req.body.currentPassword, req.body.newPassword);
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      return res.json({
+        message: 'Password updated successfully',
+        user: buildAuthUserPayload(updatedUser),
+      });
+    } catch (error) {
+      console.error('Update password error:', error);
+
+      if (error.code === 'INVALID_CURRENT_PASSWORD' || error.code === 'PASSWORD_REUSE') {
+        return res.status(400).json({ error: error.message });
+      }
+
+      return res.status(500).json({ error: 'Failed to update password' });
+    }
+  }
+);
+
 router.post('/logout', auth, async (req, res) => {
   try {
-    req.user.isOnline = false;
-    await req.user.save();
-    res.json({ message: 'Logout successful' });
+    await User.updateOnlineStatus(req.user.id, false);
+    return res.json({ message: 'Logout successful' });
   } catch (error) {
-    res.status(500).json({ error: 'Logout failed' });
+    console.error('Logout error:', error);
+    return res.status(500).json({ error: 'Logout failed' });
   }
 });
 

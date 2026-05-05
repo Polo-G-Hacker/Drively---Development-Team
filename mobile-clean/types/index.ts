@@ -4,41 +4,123 @@
  */
 
 // User Types
+export type PaymentMethodId = 'mtn_momo' | 'orange_money' | null;
+
+export interface UserSettings {
+  notifications: {
+    rideUpdates: boolean;
+    smsUpdates: boolean;
+    promotions: boolean;
+  };
+  privacy: {
+    shareLiveLocation: boolean;
+    communityVisibility: boolean;
+  };
+  security: {
+    loginAlerts: boolean;
+  };
+  payments: {
+    defaultMethod: PaymentMethodId;
+  };
+}
+
 export interface User {
   id: string;
+  _id?: string;
   name: string;
   phoneNumber: string;
   role: 'passenger' | 'driver';
+  email?: string | null;
+  profileImage?: string | null;
+  settings?: UserSettings;
   rating?: number;
   wallet?: {
     balance: number;
-    transactions: Transaction[];
+    currency?: string;
+    transactions?: Transaction[];
   };
+  communities?: Community[];
   [key: string]: any;
 }
 
 // Driver Types
 export interface DriverProfile {
-  userId: string;
+  id?: string;
+  _id?: string;
+  user?: User | string;
+  vehicleType?: 'car' | 'bike' | 'minibus';
+  licenseNumber?: string;
   vehicleModel: string;
   vehiclePlateNumber: string;
   vehicleColor: string;
   isAvailable: boolean;
-  currentRoute?: Route;
-  earnings: number;
+  currentRoute?: Route | null;
+  currentRide?: string | null;
+  maxPassengers?: number;
+  currentPassengerCount?: number;
+  totalEarnings?: number;
+  totalRides?: number;
   rating?: number;
+  isPremium?: boolean;
 }
 
 // Ride Types
+export interface RideParticipant {
+  id?: string;
+  _id?: string;
+  user?: User | string;
+  pickupLocation?: {
+    type?: 'Point';
+    coordinates: number[];
+  };
+  dropoffLocation?: {
+    type?: 'Point';
+    coordinates: number[];
+  };
+  pickupAddress?: string;
+  dropoffAddress?: string;
+  status?: 'pending' | 'accepted' | 'picked_up' | 'dropped_off' | 'cancelled';
+  fare?: number;
+  distance?: number;
+  duration?: number;
+  joinedAt?: string;
+}
+
+export interface RideRouteSummary {
+  origin?: string;
+  destination?: string;
+  originCoords?: {
+    type?: 'Point';
+    coordinates: number[];
+  } | null;
+  destinationCoords?: {
+    type?: 'Point';
+    coordinates: number[];
+  } | null;
+}
+
 export interface Ride {
   id: string;
-  passengerId: string;
+  _id?: string;
+  passengerId?: string;
   driverId?: string;
-  pickupLocation: Location;
-  dropoffLocation: Location;
-  fare: number;
-  status: 'requested' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
-  vehicleType: 'car' | 'bike';
+  driver?: DriverProfile | string;
+  passengers?: RideParticipant[];
+  route?: RideRouteSummary;
+  pickupLocation?: Location;
+  dropoffLocation?: Location;
+  fare?: number;
+  totalFare?: number;
+  commission?: number;
+  driverEarnings?: number;
+  status: 'searching' | 'active' | 'completed' | 'cancelled' | 'requested' | 'accepted' | 'in_progress';
+  vehicleType?: 'car' | 'bike' | 'minibus';
+  paymentStatus?: 'pending' | 'paid' | 'failed';
+  paymentMethod?: string | null;
+  transactionId?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  community?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -89,6 +171,26 @@ export interface PaymentData {
   rideId: string;
   amount: number;
   method: 'wallet' | 'card' | 'cash';
+}
+
+// Review Types
+export interface Review {
+  id: string;
+  rideId: string;
+  reviewer: {
+    id: string;
+    name: string;
+    profileImage?: string;
+  };
+  reviewee: string | {
+    id: string;
+    name: string;
+    profileImage?: string;
+  };
+  rating: number;
+  comment?: string;
+  reviewerRole: 'passenger' | 'driver';
+  createdAt: string;
 }
 
 // API Response Types

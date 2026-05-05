@@ -1,0 +1,10 @@
+Update password error: Error: Current password is incorrect
+    at Object.updatePassword (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\backend\src\models\User.js:201:19)
+    at async C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\backend\src\routes\auth.js:169:27 {
+  code: 'INVALID_CURRENT_PASSWORD'
+}
+Update password error: Error: Current password is incorrect
+    at Object.updatePassword (C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\backend\src\models\User.js:201:19)
+    at async C:\Users\kl\Desktop\St Jean  Notes\L2\SEM 2\Dive.ly\Drively---Development-Team\backend\src\routes\auth.js:169:27 {
+  code: 'INVALID_CURRENT_PASSWORD'
+}

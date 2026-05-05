@@ -21,7 +21,7 @@ A robust Node.js/Express backend server for the Drive.ly ride-hailing platform. 
 - **Node.js** - JavaScript runtime
 - **Express.js** - Web framework
 - **Socket.IO** - Real-time bidirectional communication
-- **MongoDB** - NoSQL database via Mongoose
+- **MySQL** - Relational database
 - **JWT** - Authentication tokens
 - **Bcrypt** - Password hashing
 - **Flutterwave** - Payment processing
@@ -50,8 +50,9 @@ A robust Node.js/Express backend server for the Drive.ly ride-hailing platform. 
    # Edit .env with your configuration
    ```
 
-4. **Start MongoDB:**
-   - Ensure MongoDB is running locally or update MONGODB_URI in .env
+4. **Start MySQL:**
+   - Ensure MySQL is running locally and that the credentials in `.env` are valid
+   - The backend creates the configured database and required tables automatically on startup
 
 5. **Start the development server:**
    ```bash
@@ -69,7 +70,7 @@ A robust Node.js/Express backend server for the Drive.ly ride-hailing platform. 
 backend/
 ├── src/
 │   ├── config/
-│   │   └── database.js          # MongoDB connection configuration
+│   │   └── database.js          # MySQL connection and schema bootstrap
 │   ├── middleware/
 │   │   └── auth.js              # JWT authentication middleware
 │   ├── models/
@@ -103,7 +104,11 @@ SOCKET_PORT=3001
 CLIENT_URL=http://localhost:19006
 
 # Database
-MONGODB_URI=mongodb://localhost:27017/drively
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=drively
+DB_PORT=3306
 
 # JWT
 JWT_SECRET=your_jwt_secret_here
@@ -358,15 +363,15 @@ docker run -p 3000:3000 -p 3001:3001 --env-file .env drively-backend
 
 ## 🐛 Troubleshooting
 
-### MongoDB Connection Failed
+### MySQL Connection Failed
 ```bash
-# Check if MongoDB is running
-sudo systemctl status mongod  # Linux
-brew services list mongodb    # macOS
+# Check if MySQL is running
+sudo systemctl status mysql   # Linux
+brew services list mysql      # macOS
 
-# Start MongoDB
-sudo systemctl start mongod   # Linux
-brew services start mongodb   # macOS
+# Start MySQL
+sudo systemctl start mysql    # Linux
+brew services start mysql     # macOS
 ```
 
 ### Port Already in Use
