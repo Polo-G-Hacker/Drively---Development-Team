@@ -27,7 +27,7 @@ async function apiCall<T>(
 ): Promise<ApiResponse<T>> {
   try {
     const token = await AsyncStorage.getItem('token');
-    
+
     const response = await fetchWithTimeout(`${API_CONFIG.BASE_URL}${endpoint}`, {
       ...options,
       headers: {
@@ -102,10 +102,29 @@ export const authAPI = {
 /**
  * Rides API
  */
+
+// Fix: the backend /api/rides/search expects these specific query param names:
+//   originLat, originLng, destLat, destLng
+// The old signature sent `origin` and `destination` as strings, which the backend ignored.
+export type SearchRidesParams = {
+  originLat: number;
+  originLng: number;
+  destLat: number;
+  destLng: number;
+};
+
 export const rideAPI = {
-  searchRides: async (params: { origin: string; destination: string; vehicleType?: string }) => {
-    const queryParams = new URLSearchParams(params).toString();
-    return apiCall<Ride[]>(`${API_ENDPOINTS.RIDES.SEARCH}?${queryParams}`, {
+  // Fix: accept coordinate params and build the query string the backend actually reads.
+  searchRides: async (params: SearchRidesParams) => {
+    const queryParams = new URLSearchParams({
+      originLat: String(params.originLat),
+      originLng: String(params.originLng),
+      destLat: String(params.destLat),
+      destLng: String(params.destLng),
+    }).toString();
+
+    // Backend returns { matches: RideMatch[] }
+    return apiCall<{ matches: any[] }>(`${API_ENDPOINTS.RIDES.SEARCH}?${queryParams}`, {
       method: 'GET',
     });
   },
@@ -231,6 +250,7 @@ export const passengerAPI = {
     });
   },
 
+  // Fix: this was defined but never called from the home screen. Now it is.
   updateLocation: async (data: { latitude: number; longitude: number }) => {
     return apiCall<User>(API_ENDPOINTS.PASSENGERS.UPDATE_LOCATION, {
       method: 'PATCH',

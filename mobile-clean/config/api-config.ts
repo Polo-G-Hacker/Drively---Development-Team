@@ -51,6 +51,21 @@ function resolveExpoHost() {
   return null;
 }
 
+function normalizeNativeHost(hostname: string | null) {
+  if (!hostname) {
+    return null;
+  }
+
+  if (
+    Platform.OS === 'android' &&
+    (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' || hostname === '::1')
+  ) {
+    return '10.0.2.2';
+  }
+
+  return hostname;
+}
+
 export function resolveServiceUrl(port: number, path = '') {
   const explicitBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
   if (explicitBaseUrl && port === 3000 && path === '/api') {
@@ -61,7 +76,7 @@ export function resolveServiceUrl(port: number, path = '') {
     return `http://${window.location.hostname}:${port}${path}`;
   }
 
-  const host = resolveExpoHost() || (Platform.OS === 'android' ? '10.0.2.2' : 'localhost');
+  const host = normalizeNativeHost(resolveExpoHost()) || (Platform.OS === 'android' ? '10.0.2.2' : 'localhost');
   return `http://${host}:${port}${path}`;
 }
 
