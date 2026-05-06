@@ -1,59 +1,70 @@
-const mysql = require('mysql2/promise');
+const { Pool } = require('pg');
+
 let pool;
 
-function getConfig(includeDatabase = true) {
-  const config = {
+function getConfig() {
+  return {
     host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
+    user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || '',
-    port: Number(process.env.DB_PORT || 3306),
-    multipleStatements: true,
+    port: Number(process.env.DB_PORT || 5432),
+    database: process.env.DB_NAME || 'drively',
+    max: Number(process.env.DB_CONNECTION_LIMIT || 10),
   };
-
-  if (includeDatabase) {
-    config.database = process.env.DB_NAME || 'drively';
-    config.waitForConnections = true;
-    config.connectionLimit = Number(process.env.DB_CONNECTION_LIMIT || 10);
-    config.queueLimit = 0;
-  }
-
-  return config;
 }
 
-async function initializeSchema() {
-  await query(`
+async function initializeSchema(client) {
+  await client.query(`
     CREATE TABLE IF NOT EXISTS users (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       phone_number VARCHAR(50) NOT NULL UNIQUE,
       password_hash VARCHAR(255) NOT NULL,
       name VARCHAR(255) NOT NULL,
-      role ENUM('driver', 'passenger', 'admin') NOT NULL,
+      role VARCHAR(20) NOT NULL CHECK (role IN ('driver', 'passenger', 'admin')),
       email VARCHAR(255) NULL,
-      profile_image LONGTEXT NULL,
-      settings_json JSON NULL,
+      profile_image TEXT NULL,
+      settings_json JSONB NULL,
       rating DECIMAL(3,2) NOT NULL DEFAULT 0,
       total_ratings INT NOT NULL DEFAULT 0,
-      is_verified TINYINT(1) NOT NULL DEFAULT 0,
-      is_online TINYINT(1) NOT NULL DEFAULT 0,
+      is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+      is_online BOOLEAN NOT NULL DEFAULT FALSE,
       current_latitude DECIMAL(10,7) NULL,
       current_longitude DECIMAL(10,7) NULL,
       wallet_balance DECIMAL(12,2) NOT NULL DEFAULT 0,
       wallet_currency VARCHAR(10) NOT NULL DEFAULT 'XAF',
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  await query('ALTER TABLE users MODIFY COLUMN profile_image LONGTEXT NULL');
+  await client.query(`
+    CREATE OR REPLACE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      NEW.updated_at = CURRENT_TIMESTAMP;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
 
-  const settingsColumns = await query("SHOW COLUMNS FROM users LIKE 'settings_json'");
-  if (!settingsColumns.length) {
-    await query('ALTER TABLE users ADD COLUMN settings_json JSON NULL AFTER profile_image');
-  }
+  await client.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger
+        WHERE tgname = 'set_updated_at_users'
+      ) THEN
+        CREATE TRIGGER set_updated_at_users
+        BEFORE UPDATE ON users
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column();
+      END IF;
+    END $$;
+  `);
 
-  await query(`
+  await client.query(`
     CREATE TABLE IF NOT EXISTS communities (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       name VARCHAR(255) NOT NULL,
       description TEXT NULL,
       origin VARCHAR(255) NOT NULL,
@@ -62,15 +73,30 @@ async function initializeSchema() {
       origin_longitude DECIMAL(10,7) NULL,
       destination_latitude DECIMAL(10,7) NULL,
       destination_longitude DECIMAL(10,7) NULL,
-      frequent_routes_json JSON NULL,
-      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      frequent_routes_json JSONB NULL,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
       member_count INT NOT NULL DEFAULT 0,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  await query(`
+  await client.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger
+        WHERE tgname = 'set_updated_at_communities'
+      ) THEN
+        CREATE TRIGGER set_updated_at_communities
+        BEFORE UPDATE ON communities
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column();
+      END IF;
+    END $$;
+  `);
+
+  await client.query(`
     CREATE TABLE IF NOT EXISTS user_communities (
       user_id INT NOT NULL,
       community_id INT NOT NULL,
@@ -85,41 +111,56 @@ async function initializeSchema() {
     )
   `);
 
-  await query(`
+  await client.query(`
     CREATE TABLE IF NOT EXISTS drivers (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       user_id INT NOT NULL UNIQUE,
-      vehicle_type ENUM('car', 'bike', 'minibus') NOT NULL DEFAULT 'car',
+      vehicle_type VARCHAR(20) NOT NULL DEFAULT 'car' CHECK (vehicle_type IN ('car', 'bike', 'minibus')),
       vehicle_model VARCHAR(255) NOT NULL,
       vehicle_plate_number VARCHAR(50) NOT NULL UNIQUE,
       vehicle_color VARCHAR(100) NOT NULL,
       license_number VARCHAR(100) NOT NULL,
-      is_available TINYINT(1) NOT NULL DEFAULT 1,
+      is_available BOOLEAN NOT NULL DEFAULT TRUE,
       current_route_origin VARCHAR(255) NULL,
       current_route_destination VARCHAR(255) NULL,
       current_route_origin_latitude DECIMAL(10,7) NULL,
       current_route_origin_longitude DECIMAL(10,7) NULL,
       current_route_destination_latitude DECIMAL(10,7) NULL,
       current_route_destination_longitude DECIMAL(10,7) NULL,
-      current_waypoints_json JSON NULL,
+      current_waypoints_json JSONB NULL,
       current_ride_id INT NULL,
       max_passengers INT NOT NULL DEFAULT 3,
       current_passenger_count INT NOT NULL DEFAULT 0,
       total_earnings DECIMAL(12,2) NOT NULL DEFAULT 0,
       total_rides INT NOT NULL DEFAULT 0,
       rating DECIMAL(3,2) NOT NULL DEFAULT 0,
-      is_premium TINYINT(1) NOT NULL DEFAULT 0,
+      is_premium BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_drivers_user
         FOREIGN KEY (user_id) REFERENCES users(id)
         ON DELETE CASCADE
     )
   `);
 
-  await query(`
+  await client.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger
+        WHERE tgname = 'set_updated_at_drivers'
+      ) THEN
+        CREATE TRIGGER set_updated_at_drivers
+        BEFORE UPDATE ON drivers
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column();
+      END IF;
+    END $$;
+  `);
+
+  await client.query(`
     CREATE TABLE IF NOT EXISTS rides (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       driver_id INT NOT NULL,
       route_origin VARCHAR(255) NOT NULL,
       route_destination VARCHAR(255) NOT NULL,
@@ -127,18 +168,18 @@ async function initializeSchema() {
       route_origin_longitude DECIMAL(10,7) NULL,
       route_destination_latitude DECIMAL(10,7) NULL,
       route_destination_longitude DECIMAL(10,7) NULL,
-      status ENUM('searching', 'active', 'completed', 'cancelled') NOT NULL DEFAULT 'searching',
+      status VARCHAR(20) NOT NULL DEFAULT 'searching' CHECK (status IN ('searching', 'active', 'completed', 'cancelled')),
       total_fare DECIMAL(12,2) NOT NULL DEFAULT 0,
       commission DECIMAL(12,2) NOT NULL DEFAULT 0,
       driver_earnings DECIMAL(12,2) NOT NULL DEFAULT 0,
-      started_at DATETIME NULL,
-      completed_at DATETIME NULL,
+      started_at TIMESTAMP NULL,
+      completed_at TIMESTAMP NULL,
       community_id INT NULL,
-      payment_status ENUM('pending', 'paid', 'failed') NOT NULL DEFAULT 'pending',
+      payment_status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid', 'failed')),
       payment_method VARCHAR(50) NULL,
       transaction_id VARCHAR(100) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_rides_driver
         FOREIGN KEY (driver_id) REFERENCES drivers(id)
         ON DELETE CASCADE,
@@ -148,9 +189,24 @@ async function initializeSchema() {
     )
   `);
 
-  await query(`
+  await client.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger
+        WHERE tgname = 'set_updated_at_rides'
+      ) THEN
+        CREATE TRIGGER set_updated_at_rides
+        BEFORE UPDATE ON rides
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column();
+      END IF;
+    END $$;
+  `);
+
+  await client.query(`
     CREATE TABLE IF NOT EXISTS ride_passengers (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       ride_id INT NOT NULL,
       user_id INT NOT NULL,
       pickup_latitude DECIMAL(10,7) NOT NULL,
@@ -159,7 +215,7 @@ async function initializeSchema() {
       dropoff_longitude DECIMAL(10,7) NOT NULL,
       pickup_address VARCHAR(255) NOT NULL,
       dropoff_address VARCHAR(255) NOT NULL,
-      status ENUM('pending', 'accepted', 'picked_up', 'dropped_off', 'cancelled') NOT NULL DEFAULT 'pending',
+      status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'picked_up', 'dropped_off', 'cancelled')),
       fare DECIMAL(12,2) NOT NULL,
       distance DECIMAL(12,2) NOT NULL,
       duration DECIMAL(12,2) NOT NULL,
@@ -172,26 +228,66 @@ async function initializeSchema() {
         ON DELETE CASCADE
     )
   `);
+
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS reviews (
+      id SERIAL PRIMARY KEY,
+      ride_id INT NULL,
+      reviewer_id INT NOT NULL,
+      reviewee_id INT NOT NULL,
+      rating INT NOT NULL,
+      comment TEXT NULL,
+      reviewer_role VARCHAR(20) NOT NULL CHECK (reviewer_role IN ('passenger', 'driver')),
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_reviews_ride
+        FOREIGN KEY (ride_id) REFERENCES rides(id)
+        ON DELETE CASCADE,
+      CONSTRAINT fk_reviews_reviewer
+        FOREIGN KEY (reviewer_id) REFERENCES users(id)
+        ON DELETE CASCADE,
+      CONSTRAINT fk_reviews_reviewee
+        FOREIGN KEY (reviewee_id) REFERENCES users(id)
+        ON DELETE CASCADE
+    )
+  `);
 }
 
 async function connectDB() {
-  const bootstrapConnection = await mysql.createConnection(getConfig(false));
+  const config = getConfig();
+  const bootstrapClient = new (require('pg').Client)({
+    host: config.host,
+    user: config.user,
+    password: config.password,
+    port: config.port,
+  });
+
+  await bootstrapClient.connect();
   const databaseName = process.env.DB_NAME || 'drively';
 
   try {
-    await bootstrapConnection.query(
-      `CREATE DATABASE IF NOT EXISTS \`${databaseName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+    const dbExists = await bootstrapClient.query(
+      "SELECT 1 FROM pg_database WHERE datname = $1",
+      [databaseName]
     );
+
+    if (!dbExists.rows.length) {
+      await bootstrapClient.query(`CREATE DATABASE "${databaseName}"`);
+    }
   } finally {
-    await bootstrapConnection.end();
+    await bootstrapClient.end();
   }
 
-  pool = mysql.createPool(getConfig(true));
+  pool = new Pool(config);
   await pool.query('SELECT 1');
-  await initializeSchema();
 
-  const config = getConfig(true);
-  console.log(`MySQL connected to ${config.database} on ${config.host}:${config.port}`);
+  const client = await pool.connect();
+  try {
+    await initializeSchema(client);
+  } finally {
+    client.release();
+  }
+
+  console.log(`PostgreSQL connected to ${config.database} on ${config.host}:${config.port}`);
   return pool;
 }
 
@@ -203,25 +299,38 @@ function getPool() {
   return pool;
 }
 
+function replacePlaceholders(sql, params) {
+  let index = 0;
+  return sql.replace(/\?/g, () => `$${++index}`);
+}
+
 async function query(sql, params = [], connection = null) {
+  const formattedSql = replacePlaceholders(sql, params);
   const executor = connection || getPool();
-  const [rows] = await executor.query(sql, params);
+  const { rows } = await executor.query(formattedSql, params);
+  return rows;
+}
+
+async function queryWithReturning(sql, params = [], connection = null) {
+  const formattedSql = replacePlaceholders(sql, params);
+  const executor = connection || getPool();
+  const { rows } = await executor.query(formattedSql, params);
   return rows;
 }
 
 async function withTransaction(callback) {
-  const connection = await getPool().getConnection();
+  const client = await getPool().connect();
 
   try {
-    await connection.beginTransaction();
-    const result = await callback(connection);
-    await connection.commit();
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
     return result;
   } catch (error) {
-    await connection.rollback();
+    await client.query('ROLLBACK');
     throw error;
   } finally {
-    connection.release();
+    client.release();
   }
 }
 
@@ -229,5 +338,6 @@ module.exports = {
   connectDB,
   getPool,
   query,
+  queryWithReturning,
   withTransaction,
 };

@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query, queryWithReturning } = require('../config/database');
 const { buildPoint, toId, toNumber } = require('./helpers');
 const Driver = require('./Driver');
 const User = require('./User');
@@ -89,7 +89,7 @@ async function findById(rideId, options = {}, connection = null) {
 }
 
 async function create(payload, connection = null) {
-  const result = await query(
+  const rows = await queryWithReturning(
     `
       INSERT INTO rides (
         driver_id,
@@ -110,6 +110,7 @@ async function create(payload, connection = null) {
         payment_method,
         transaction_id
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      RETURNING id
     `,
     [
       payload.driverId,
@@ -133,20 +134,22 @@ async function create(payload, connection = null) {
     connection
   );
 
+  const rideId = rows[0].id;
+
   if (Array.isArray(payload.passengers) && payload.passengers.length > 0) {
     for (const passenger of payload.passengers) {
-      await addPassenger(result.insertId, passenger, connection);
+      await addPassenger(rideId, passenger, connection);
     }
   }
 
-  return findById(result.insertId, { includeDriver: true, includePassengers: true, includePassengerUsers: true }, connection);
+  return findById(rideId, { includeDriver: true, includePassengers: true, includePassengerUsers: true }, connection);
 }
 
 async function addPassenger(rideId, passenger, connection = null) {
   const pickupCoordinates = passenger.pickupLocation?.coordinates || passenger.pickupLocation || [];
   const dropoffCoordinates = passenger.dropoffLocation?.coordinates || passenger.dropoffLocation || [];
 
-  const result = await query(
+  const rows = await queryWithReturning(
     `
       INSERT INTO ride_passengers (
         ride_id,
@@ -162,6 +165,7 @@ async function addPassenger(rideId, passenger, connection = null) {
         distance,
         duration
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      RETURNING id
     `,
     [
       rideId,
@@ -180,8 +184,8 @@ async function addPassenger(rideId, passenger, connection = null) {
     connection
   );
 
-  const rows = await query('SELECT * FROM ride_passengers WHERE id = ? LIMIT 1', [result.insertId], connection);
-  return mapRidePassengerRow(rows[0]);
+  const resultRows = await query('SELECT * FROM ride_passengers WHERE id = ? LIMIT 1', [rows[0].id], connection);
+  return mapRidePassengerRow(resultRows[0]);
 }
 
 async function updateById(rideId, updates, connection = null) {

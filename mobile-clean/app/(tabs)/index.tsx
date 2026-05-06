@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useAuth } from '../../contexts/auth-context';
-import { rideAPI } from '../../services/api/api-client';
+import { passengerAPI, rideAPI } from '../../services/api/api-client';
 import { initializeSocket, listenForRideUpdates, removeRideListeners } from '../../services/socket/socket-client';
 import { useRouter } from 'expo-router';
 import { RideMap } from '../../components/ride-map';
@@ -35,8 +35,9 @@ const HomeScreen = () => {
   const { user, token } = useAuth();
 
   useEffect(() => {
-    requestLocationPermission();
+    // Fix: only call getCurrentLocation once — it handles permission internally
     getCurrentLocation();
+
     if (token) {
       initializeSocket(token);
     }
@@ -46,7 +47,56 @@ const HomeScreen = () => {
     };
   }, [token]);
 
-  const requestLocationPermission = async () => {
+  const applyLocation = async (newLocation: RideLocation) => {
+    setLocation(newLocation);
+    setRegion((prev) => ({
+      ...prev,
+      latitude: newLocation.latitude,
+      longitude: newLocation.longitude,
+    }));
+
+    if (user?.role === 'passenger') {
+      try {
+        await passengerAPI.updateLocation({
+          latitude: newLocation.latitude,
+          longitude: newLocation.longitude,
+        });
+      } catch (locationUpdateError) {
+        // Non-fatal - continue even if backend update fails
+        console.warn('Could not update location on server:', locationUpdateError);
+      }
+    }
+  };
+
+  const showLocationSetupAlert = () => {
+    const message =
+      Platform.OS === 'android'
+        ? 'Unable to get your current location. Please turn on Location in the emulator settings. In Android Studio emulator, open Extended Controls > Location and send a mock location, then try again.'
+        : 'Unable to get your current location. Please ensure location services are enabled in your device settings.';
+
+    const settingsAction =
+      Platform.OS === 'web'
+        ? undefined
+        : {
+            text: 'Open Settings',
+            onPress: () => {
+              if (Platform.OS === 'ios') {
+                Linking.openURL('app-settings:');
+              } else {
+                Linking.openSettings();
+              }
+            },
+          };
+
+    Alert.alert('Location Error', message, [
+      { text: 'Retry', onPress: () => void getCurrentLocation() },
+      ...(settingsAction ? [settingsAction] : []),
+      { text: 'OK', style: 'cancel' },
+    ]);
+  };
+
+  // Fix: permission request is now only called from getCurrentLocation, not standalone
+  const requestLocationPermission = async (): Promise<boolean> => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -79,54 +129,113 @@ const HomeScreen = () => {
     }
   };
 
+  const ensureLocationServicesEnabled = async (): Promise<boolean> => {
+    try {
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (servicesEnabled) {
+        return true;
+      }
+
+      if (Platform.OS === 'android') {
+        try {
+          await Location.enableNetworkProviderAsync();
+          return await Location.hasServicesEnabledAsync();
+        } catch (providerError) {
+          console.warn('Could not enable Android location provider:', providerError);
+        }
+      }
+
+      showLocationSetupAlert();
+      return false;
+    } catch (error) {
+      console.error('Error checking location services:', error);
+      showLocationSetupAlert();
+      return false;
+    }
+  };
+
   const getCurrentLocation = async () => {
     try {
       const hasPermission = await requestLocationPermission();
       if (!hasPermission) {
         return;
       }
-      const currentLocation = await Location.getCurrentPositionAsync({});
-      const newLocation = {
+
+      const hasServicesEnabled = await ensureLocationServicesEnabled();
+      if (!hasServicesEnabled) {
+        return;
+      }
+
+      // Fix: use Balanced accuracy - faster on emulator, good enough for ride matching
+      const currentLocation = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        mayShowUserSettingsDialog: true,
+      });
+
+      await applyLocation({
         latitude: currentLocation.coords.latitude,
         longitude: currentLocation.coords.longitude,
-      };
-      setLocation(newLocation);
-      setRegion({
-        ...region,
-        latitude: newLocation.latitude,
-        longitude: newLocation.longitude,
       });
     } catch (error) {
       console.error('Error getting location:', error);
-      Alert.alert(
-        'Location Error',
-        'Unable to get your current location. Please ensure location services are enabled in your device settings.'
-      );
+
+      try {
+        const fallbackLocation = await Location.getLastKnownPositionAsync({
+          maxAge: 1000 * 60 * 10,
+          requiredAccuracy: 5000,
+        });
+
+        if (fallbackLocation) {
+          await applyLocation({
+            latitude: fallbackLocation.coords.latitude,
+            longitude: fallbackLocation.coords.longitude,
+          });
+          Alert.alert(
+            'Using Last Known Location',
+            'We could not fetch a fresh GPS fix, so Drive.ly is using the last known device location for now.'
+          );
+          return;
+        }
+      } catch (fallbackError) {
+        console.warn('No last known location available:', fallbackError);
+      }
+
+      showLocationSetupAlert();
     }
   };
 
   const searchRides = async () => {
-    if (!destination || !location) {
-      Alert.alert('Error', 'Please enter destination and ensure location is enabled');
+    if (!destination.trim()) {
+      Alert.alert('Error', 'Please enter a destination');
+      return;
+    }
+    if (!location) {
+      Alert.alert('Error', 'Location not available yet. Please wait or check your location settings.');
       return;
     }
 
     setIsSearching(true);
 
     try {
-      const destCoords = {
-        latitude: location.latitude + 0.01,
-        longitude: location.longitude + 0.01,
-      };
-
+      // Fix: pass actual coordinates instead of the string 'Current Location'.
+      // The backend /api/rides/search expects originLat, originLng, destLat, destLng.
+      // We use a small offset for the destination until geocoding is wired up.
       const response = await rideAPI.searchRides({
-        origin: 'Current Location',
-        destination: destination,
-        vehicleType: vehicleType,
+        originLat: location.latitude,
+        originLng: location.longitude,
+        // Temporary: offset destination by ~1 km until geocoding is implemented
+        destLat: location.latitude + 0.009,
+        destLng: location.longitude + 0.009,
       });
 
       if (response.success) {
-        setMatches(response.data || []);
+        // Fix: backend returns { matches: [...] }, not a bare array
+        const foundMatches = response.data?.matches ?? [];
+        setMatches(foundMatches);
+
+        if (foundMatches.length === 0) {
+          Alert.alert('No rides found', 'No drivers are available on this route right now. Try again in a moment.');
+        }
       } else {
         Alert.alert('Error', response.error || 'Failed to search for rides');
         return;
@@ -136,7 +245,7 @@ const HomeScreen = () => {
         onRideAvailable: (data) => {
           console.log('Ride available:', data);
         },
-        onRideAccepted: (data) => {
+        onRideAccepted: (_data) => {
           router.push('/ride-tracking');
         },
         onRideStatusUpdated: (data) => {
@@ -150,34 +259,35 @@ const HomeScreen = () => {
         },
       });
     } catch (error) {
-      Alert.alert('Error', 'Failed to search for rides');
+      console.error('Search rides error:', error);
+      Alert.alert('Error', 'Failed to search for rides. Please check your connection.');
     } finally {
       setIsSearching(false);
     }
   };
 
-  const selectRide = (match) => {
+  const selectRide = (_match: any) => {
     router.push('/ride-booking');
   };
 
-  const getVehiclePrice = (type) => {
+  const getVehiclePrice = (type: string) => {
     return type === 'car' ? '2000 FCFA' : '1000 FCFA';
   };
 
   const handleZoomIn = () => {
-    setRegion({
-      ...region,
-      latitudeDelta: region.latitudeDelta * 0.5,
-      longitudeDelta: region.longitudeDelta * 0.5,
-    });
+    setRegion((prev) => ({
+      ...prev,
+      latitudeDelta: prev.latitudeDelta * 0.5,
+      longitudeDelta: prev.longitudeDelta * 0.5,
+    }));
   };
 
   const handleZoomOut = () => {
-    setRegion({
-      ...region,
-      latitudeDelta: region.latitudeDelta * 2,
-      longitudeDelta: region.longitudeDelta * 2,
-    });
+    setRegion((prev) => ({
+      ...prev,
+      latitudeDelta: prev.latitudeDelta * 2,
+      longitudeDelta: prev.longitudeDelta * 2,
+    }));
   };
 
   const resetToYaounde = () => {
@@ -223,7 +333,7 @@ const HomeScreen = () => {
 
       <ScrollView style={styles.bottomSheet}>
         <Text style={styles.sectionTitle}>Select Vehicle</Text>
-        
+
         <View style={styles.vehicleOptions}>
           <TouchableOpacity
             style={[
@@ -263,7 +373,7 @@ const HomeScreen = () => {
             <Text style={styles.sectionTitle}>Available Rides</Text>
             {matches.map((match, index) => (
               <TouchableOpacity
-                key={index}
+                key={match.driverId ?? index}
                 style={styles.rideCard}
                 onPress={() => selectRide(match)}
               >
@@ -299,9 +409,6 @@ const HomeScreen = () => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-  },
-  map: {
     flex: 1,
   },
   searchContainer: {
@@ -413,6 +520,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 15,
     marginTop: 10,
+    marginBottom: 10,
   },
   requestButtonText: {
     color: '#FFFFFF',

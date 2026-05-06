@@ -21,7 +21,7 @@ A robust Node.js/Express backend server for the Drive.ly ride-hailing platform. 
 - **Node.js** - JavaScript runtime
 - **Express.js** - Web framework
 - **Socket.IO** - Real-time bidirectional communication
-- **MySQL** - Relational database
+- **PostgreSQL** - Relational database
 - **JWT** - Authentication tokens
 - **Bcrypt** - Password hashing
 - **Flutterwave** - Payment processing
@@ -50,8 +50,8 @@ A robust Node.js/Express backend server for the Drive.ly ride-hailing platform. 
    # Edit .env with your configuration
    ```
 
-4. **Start MySQL:**
-   - Ensure MySQL is running locally and that the credentials in `.env` are valid
+4. **Start PostgreSQL:**
+   - Ensure PostgreSQL is running locally and that the credentials in `.env` are valid
    - The backend creates the configured database and required tables automatically on startup
 
 5. **Start the development server:**
@@ -70,7 +70,7 @@ A robust Node.js/Express backend server for the Drive.ly ride-hailing platform. 
 backend/
 ├── src/
 │   ├── config/
-│   │   └── database.js          # MySQL connection and schema bootstrap
+│   │   └── database.js          # PostgreSQL connection and schema bootstrap
 │   ├── middleware/
 │   │   └── auth.js              # JWT authentication middleware
 │   ├── models/
@@ -363,15 +363,15 @@ docker run -p 3000:3000 -p 3001:3001 --env-file .env drively-backend
 
 ## 🐛 Troubleshooting
 
-### MySQL Connection Failed
+### PostgreSQL Connection Failed
 ```bash
-# Check if MySQL is running
-sudo systemctl status mysql   # Linux
-brew services list mysql      # macOS
+# Check if PostgreSQL is running
+sudo systemctl status postgresql   # Linux
+brew services list postgresql      # macOS
 
-# Start MySQL
-sudo systemctl start mysql    # Linux
-brew services start mysql     # macOS
+# Start PostgreSQL
+sudo systemctl start postgresql    # Linux
+brew services start postgresql     # macOS
 ```
 
 ### Port Already in Use

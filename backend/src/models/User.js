@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 
-const { query } = require('../config/database');
+const { query, queryWithReturning } = require('../config/database');
 const { buildPoint, parseJsonField, toBoolean, toId, toNumber } = require('./helpers');
 
 const DEFAULT_USER_SETTINGS = {
@@ -131,16 +131,17 @@ async function findById(userId, options = {}, connection = null) {
 async function create({ phoneNumber, password, name, role, email = null }, connection = null) {
   const passwordHash = await bcrypt.hash(password, 10);
 
-  const result = await query(
+  const rows = await queryWithReturning(
     `
       INSERT INTO users (phone_number, password_hash, name, role, email)
       VALUES (?, ?, ?, ?, ?)
+      RETURNING id
     `,
     [phoneNumber, passwordHash, name, role, email],
     connection
   );
 
-  return findById(result.insertId, {}, connection);
+  return findById(rows[0].id, {}, connection);
 }
 
 async function comparePassword(user, candidatePassword) {
@@ -152,7 +153,7 @@ async function comparePassword(user, candidatePassword) {
 }
 
 async function updateOnlineStatus(userId, isOnline, connection = null) {
-  await query('UPDATE users SET is_online = ? WHERE id = ?', [isOnline ? 1 : 0, userId], connection);
+  await query('UPDATE users SET is_online = ? WHERE id = ?', [isOnline, userId], connection);
   return findById(userId, {}, connection);
 }
 

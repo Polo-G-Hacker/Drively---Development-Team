@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query, queryWithReturning } = require('../config/database');
 const { toId, toNumber } = require('./helpers');
 const User = require('./User');
 
@@ -23,10 +23,11 @@ function mapReviewRow(row, { reviewer = null, reviewee = null } = {}) {
 async function syncDriverRating(revieweeId, connection = null) {
   await query(
     `
-      UPDATE drivers d
-      JOIN users u ON u.id = d.user_id
-      SET d.rating = u.rating
-      WHERE d.user_id = ?
+      UPDATE drivers
+      SET rating = u.rating
+      FROM users u
+      WHERE drivers.user_id = u.id
+        AND drivers.user_id = ?
     `,
     [revieweeId],
     connection
@@ -91,7 +92,7 @@ async function findByReviewerId(reviewerId, { limit = 50 } = {}, connection = nu
 }
 
 async function create(payload, connection = null) {
-  const result = await query(
+  const rows = await queryWithReturning(
     `
       INSERT INTO reviews (
         ride_id,
@@ -101,6 +102,7 @@ async function create(payload, connection = null) {
         comment,
         reviewer_role
       ) VALUES (?, ?, ?, ?, ?, ?)
+      RETURNING id
     `,
     [
       payload.rideId || null,
@@ -128,8 +130,8 @@ async function create(payload, connection = null) {
 
   await syncDriverRating(payload.revieweeId, connection);
 
-  const rows = await query('SELECT * FROM reviews WHERE id = ? LIMIT 1', [result.insertId], connection);
-  return mapReviewRow(rows[0]);
+  const resultRows = await query('SELECT * FROM reviews WHERE id = ? LIMIT 1', [rows[0].id], connection);
+  return mapReviewRow(resultRows[0]);
 }
 
 async function updateById(id, updates, connection = null) {

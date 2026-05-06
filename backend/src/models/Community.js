@@ -1,4 +1,4 @@
-const { query, withTransaction } = require('../config/database');
+const { query, queryWithReturning, withTransaction } = require('../config/database');
 const { buildPoint, parseJsonField, toBoolean, toId, toNumber } = require('./helpers');
 
 function mapCommunityRow(row) {
@@ -68,7 +68,7 @@ async function joinCommunity(userId, communityId) {
     }
 
     await query(
-      'INSERT IGNORE INTO user_communities (user_id, community_id) VALUES (?, ?)',
+      'INSERT INTO user_communities (user_id, community_id) VALUES (?, ?) ON CONFLICT DO NOTHING',
       [userId, communityId],
       connection
     );
