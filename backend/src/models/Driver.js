@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query, queryWithReturning } = require('../config/database');
 const { buildPoint, parseJsonField, toBoolean, toId, toNumber } = require('./helpers');
 const User = require('./User');
 
@@ -75,7 +75,7 @@ async function enrichDriver(row, options = {}, connection = null) {
 async function create(payload, connection = null) {
   const normalizedRoute = normalizeRoute(payload.currentRoute);
 
-  const result = await query(
+  const rows = await queryWithReturning(
     `
       INSERT INTO drivers (
         user_id,
@@ -99,6 +99,7 @@ async function create(payload, connection = null) {
         rating,
         is_premium
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      RETURNING id
     `,
     [
       payload.userId,
@@ -107,7 +108,7 @@ async function create(payload, connection = null) {
       payload.vehiclePlateNumber,
       payload.vehicleColor,
       payload.licenseNumber || payload.vehiclePlateNumber,
-      payload.isAvailable === undefined ? 1 : payload.isAvailable ? 1 : 0,
+      payload.isAvailable === undefined ? true : payload.isAvailable,
       normalizedRoute.origin,
       normalizedRoute.destination,
       normalizedRoute.originCoords?.coordinates?.[1] ?? null,
@@ -120,12 +121,12 @@ async function create(payload, connection = null) {
       payload.totalEarnings || 0,
       payload.totalRides || 0,
       payload.rating || 0,
-      payload.isPremium ? 1 : 0,
+      payload.isPremium ? true : false,
     ],
     connection
   );
 
-  return findById(result.insertId, { includeUser: true }, connection);
+  return findById(rows[0].id, { includeUser: true }, connection);
 }
 
 async function findByUserId(userId, options = {}, connection = null) {
@@ -178,7 +179,7 @@ async function updateById(driverId, updates, connection = null) {
       updates.vehiclePlateNumber || current.vehiclePlateNumber,
       updates.vehicleColor || current.vehicleColor,
       updates.licenseNumber || current.licenseNumber,
-      updates.isAvailable === undefined ? (current.isAvailable ? 1 : 0) : updates.isAvailable ? 1 : 0,
+      updates.isAvailable === undefined ? current.isAvailable : updates.isAvailable,
       normalizedRoute.origin,
       normalizedRoute.destination,
       normalizedRoute.originCoords?.coordinates?.[1] ?? null,
@@ -192,7 +193,7 @@ async function updateById(driverId, updates, connection = null) {
       updates.totalEarnings ?? current.totalEarnings,
       updates.totalRides ?? current.totalRides,
       updates.rating ?? current.rating,
-      updates.isPremium === undefined ? (current.isPremium ? 1 : 0) : updates.isPremium ? 1 : 0,
+      updates.isPremium === undefined ? current.isPremium : updates.isPremium,
       driverId,
     ],
     connection

@@ -7,6 +7,7 @@ function toId(value) {
 }
 
 function toBoolean(value) {
+  if (typeof value === 'boolean') return value;
   return Boolean(Number(value));
 }
 
@@ -24,8 +25,12 @@ function parseJsonField(value, fallback) {
     return fallback;
   }
 
-  if (typeof value !== 'string') {
+  if (typeof value === 'object') {
     return value;
+  }
+
+  if (typeof value !== 'string') {
+    return fallback;
   }
 
   try {

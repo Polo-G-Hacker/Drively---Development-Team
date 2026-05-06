@@ -63,7 +63,7 @@ router.patch(
     } catch (error) {
       console.error('Update passenger profile error:', error);
 
-      if (error.code === 'ER_DUP_ENTRY') {
+      if (error.code === '23505') {
         return res.status(400).json({ error: 'Phone number is already in use' });
       }
 
