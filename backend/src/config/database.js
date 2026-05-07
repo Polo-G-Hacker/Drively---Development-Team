@@ -4,11 +4,11 @@ let pool;
 
 function getConfig() {
   return {
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || '',
-    port: Number(process.env.DB_PORT || 5432),
-    database: process.env.DB_NAME || 'drively',
+    host: process.env.DB_HOST ,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    port: Number(process.env.DB_PORT),
+    database: process.env.DB_NAME,
     max: Number(process.env.DB_CONNECTION_LIMIT || 10),
   };
 }
