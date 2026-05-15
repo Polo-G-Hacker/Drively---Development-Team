@@ -4,6 +4,91 @@ const Driver = require('../models/Driver');
 const Ride = require('../models/Ride');
 
 const googleMapsClient = new Client({});
+const LOCATION_SIMILARITY_THRESHOLD = 0.72;
+
+function normalizeLocationText(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildNGrams(value, size = 2) {
+  if (!value) {
+    return [];
+  }
+
+  const padded = ` ${value} `;
+  if (padded.length <= size) {
+    return [padded];
+  }
+
+  const grams = [];
+  for (let index = 0; index <= padded.length - size; index += 1) {
+    grams.push(padded.slice(index, index + size));
+  }
+
+  return grams;
+}
+
+function getDiceSimilarity(first, second) {
+  if (!first || !second) {
+    return 0;
+  }
+
+  if (first === second) {
+    return 1;
+  }
+
+  const firstGrams = buildNGrams(first);
+  const secondGrams = buildNGrams(second);
+  const counts = new Map();
+
+  for (const gram of firstGrams) {
+    counts.set(gram, (counts.get(gram) || 0) + 1);
+  }
+
+  let intersectionCount = 0;
+  for (const gram of secondGrams) {
+    const count = counts.get(gram) || 0;
+    if (count > 0) {
+      counts.set(gram, count - 1);
+      intersectionCount += 1;
+    }
+  }
+
+  return (2 * intersectionCount) / (firstGrams.length + secondGrams.length);
+}
+
+function getLocationSimilarity(first, second) {
+  const normalizedFirst = normalizeLocationText(first);
+  const normalizedSecond = normalizeLocationText(second);
+
+  if (!normalizedFirst || !normalizedSecond) {
+    return 0;
+  }
+
+  if (normalizedFirst === normalizedSecond) {
+    return 1;
+  }
+
+  const shortestLength = Math.min(normalizedFirst.length, normalizedSecond.length);
+  if (
+    shortestLength >= 4 &&
+    (normalizedFirst.includes(normalizedSecond) || normalizedSecond.includes(normalizedFirst))
+  ) {
+    return 0.95;
+  }
+
+  return getDiceSimilarity(normalizedFirst, normalizedSecond);
+}
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const radius = 6371e3;
@@ -180,6 +265,86 @@ async function matchRoute({ originCoords, destinationCoords, maxDetour = 2000 })
   }
 }
 
+async function matchCommunityRoute({ origin, destination, limit = 10 }) {
+  try {
+    const drivers = await Driver.listAvailableWithRoutes();
+    const matches = [];
+
+    for (const driver of drivers) {
+      const driverOrigin = driver.currentRoute.origin;
+      const driverDestination = driver.currentRoute.destination;
+      const originCoords = driver.currentRoute.originCoords?.coordinates;
+      const destinationCoords = driver.currentRoute.destinationCoords?.coordinates;
+
+      if (!driverOrigin || !driverDestination || !originCoords || !destinationCoords) {
+        continue;
+      }
+
+      const originSimilarity = getLocationSimilarity(driverOrigin, origin);
+      const destinationSimilarity = getLocationSimilarity(driverDestination, destination);
+
+      if (
+        originSimilarity < LOCATION_SIMILARITY_THRESHOLD ||
+        destinationSimilarity < LOCATION_SIMILARITY_THRESHOLD
+      ) {
+        continue;
+      }
+
+      const distance = calculateDistance(
+        originCoords[1],
+        originCoords[0],
+        destinationCoords[1],
+        destinationCoords[0]
+      );
+      const duration = distance / 30;
+      const routeSimilarity = Math.round(((originSimilarity + destinationSimilarity) / 2) * 100);
+      const fare = calculateFare(distance, duration);
+
+      matches.push({
+        driverId: driver.id,
+        userId: driver.user?._id || driver.user?.id || driver.user,
+        driverName: driver.user?.name || driver.vehicleModel,
+        vehicleModel: driver.vehicleModel,
+        vehiclePlate: driver.vehiclePlateNumber,
+        vehicleColor: driver.vehicleColor,
+        rating: driver.rating,
+        fare,
+        estimatedArrival: Math.round(duration / 60),
+        distance: Math.round(distance),
+        duration: Math.round(duration),
+        routeSimilarity,
+        pickupAddress: origin,
+        dropoffAddress: destination,
+        pickupLocation: {
+          type: 'Point',
+          coordinates: originCoords,
+        },
+        dropoffLocation: {
+          type: 'Point',
+          coordinates: destinationCoords,
+        },
+        driverRoute: {
+          origin: driverOrigin,
+          destination: driverDestination,
+        },
+      });
+    }
+
+    matches.sort((left, right) => {
+      if (right.routeSimilarity !== left.routeSimilarity) {
+        return right.routeSimilarity - left.routeSimilarity;
+      }
+
+      return right.rating - left.rating;
+    });
+
+    return matches.slice(0, limit);
+  } catch (error) {
+    console.error('Community route matching error:', error);
+    return [];
+  }
+}
+
 async function createRide(driverId, passengerData, connection = null) {
   const driver = await Driver.findById(driverId, {}, connection);
   if (!driver) {
@@ -229,5 +394,6 @@ module.exports = {
   calculateDistance,
   calculateFare,
   createRide,
+  matchCommunityRoute,
   matchRoute,
 };
