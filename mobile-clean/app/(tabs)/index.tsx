@@ -301,11 +301,13 @@ const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
-      <RideMap
-        location={location}
-        region={region}
-        onRegionChangeComplete={setRegion}
-      />
+      <View style={styles.mapContainer}>
+        <RideMap
+          location={location}
+          region={region}
+          onRegionChangeComplete={setRegion}
+        />
+      </View>
 
       <View style={styles.zoomButtonsContainer}>
         <TouchableOpacity style={styles.zoomButton} onPress={handleZoomIn}>
@@ -410,6 +412,10 @@ const HomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#D7E7F6',
+  },
+  mapContainer: {
+    ...StyleSheet.absoluteFillObject,
   },
   searchContainer: {
     position: 'absolute',

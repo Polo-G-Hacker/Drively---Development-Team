@@ -150,9 +150,10 @@ export interface Route {
 
 // Community Types
 export interface Community {
+  id?: string;
   _id: string;
   name: string;
-  description: string;
+  description?: string;
   origin: string;
   destination: string;
   memberCount: number;

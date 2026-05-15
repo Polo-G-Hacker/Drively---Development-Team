@@ -13,7 +13,8 @@ export function RideMap(_: RideMapProps) {
 
 const styles = StyleSheet.create({
   webMapPlaceholder: {
-    height: 300,
+    flex: 1,
+    width: '100%',
     backgroundColor: '#E0E0E0',
     justifyContent: 'center',
     alignItems: 'center',

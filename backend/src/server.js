@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth');
 const rideRoutes = require('./routes/rides');
 const driverRoutes = require('./routes/drivers');
 const passengerRoutes = require('./routes/passengers');
+const communityRoutes = require('./routes/communities');
 const paymentRoutes = require('./routes/payments');
 const reviewRoutes = require('./routes/reviews');
 const { initializeSocket } = require('./services/socketService');
@@ -31,6 +32,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/rides', rideRoutes);
 app.use('/api/drivers', driverRoutes);
 app.use('/api/passengers', passengerRoutes);
+app.use('/api/communities', communityRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/reviews', reviewRoutes);
 
