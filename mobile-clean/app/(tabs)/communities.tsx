@@ -11,9 +11,11 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/auth-context';
 import { communityAPI, passengerAPI } from '../../services/api/api-client';
 import type { Community } from '../../types';
@@ -36,10 +38,14 @@ const CommunitiesScreen = () => {
   const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
   const [isRideRequestVisible, setIsRideRequestVisible] = useState(false);
   const [isRequestingRide, setIsRequestingRide] = useState(false);
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   const isDriver = user?.role === 'driver';
   const isPassenger = user?.role === 'passenger';
+  const rideRequestModalMaxHeight = Math.min(height * 0.82, height - insets.top - 48);
+  const rideRequestModalBottomPadding = Math.max(insets.bottom, 14);
 
   useEffect(() => {
     void loadCommunityData();
@@ -453,14 +459,15 @@ const CommunitiesScreen = () => {
         animationType="slide"
         visible={isRideRequestVisible}
         transparent
+        statusBarTranslucent
         onRequestClose={closeRideRequestModal}
       >
         <View style={styles.modalOverlay}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.modalWrapper}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={[styles.modalWrapper, { paddingTop: Math.max(insets.top + 16, 32) }]}
           >
-            <View style={styles.modalCard}>
+            <View style={[styles.modalCard, { maxHeight: rideRequestModalMaxHeight }]}>
               <View style={styles.modalHeader}>
                 <View style={styles.modalHeaderCopy}>
                   <Text style={styles.modalTitle}>Request Ride</Text>
@@ -484,6 +491,7 @@ const CommunitiesScreen = () => {
                   style={styles.modalScrollView}
                   contentContainerStyle={styles.modalScrollContent}
                   keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
                 >
                   {selectedCommunity && (
                     <View style={styles.routeSummaryCard}>
@@ -525,7 +533,7 @@ const CommunitiesScreen = () => {
                 </ScrollView>
               </View>
 
-              <View style={styles.modalActions}>
+              <View style={[styles.modalActions, { paddingBottom: rideRequestModalBottomPadding + 4 }]}>
                 <TouchableOpacity
                   style={styles.secondaryButton}
                   onPress={closeRideRequestModal}
@@ -804,7 +812,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalWrapper: {
-    maxHeight: '100%',
+    flex: 1,
     width: '100%',
     justifyContent: 'flex-end',
   },
@@ -813,7 +821,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '88%',
     minHeight: 0,
     overflow: 'hidden',
   },
@@ -851,15 +858,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalBody: {
+    flex: 1,
     flexShrink: 1,
     minHeight: 0,
   },
   modalScrollView: {
     flex: 1,
+    flexShrink: 1,
+    minHeight: 0,
   },
   modalScrollContent: {
     padding: 20,
-    paddingBottom: 8,
+    paddingBottom: 28,
   },
   routeSummaryCard: {
     backgroundColor: '#F8FAFC',
@@ -939,6 +949,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#EAECF0',
     padding: 16,
     gap: 12,
+    flexShrink: 0,
   },
   secondaryButton: {
     flex: 1,
