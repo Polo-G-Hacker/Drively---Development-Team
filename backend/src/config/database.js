@@ -2,13 +2,46 @@ const { Pool } = require('pg');
 
 let pool;
 
+const DEFAULT_COMMUNITIES = [
+  {
+    name: 'Melen -> Centre Ville',
+    description: 'Daily commuters from Melen to city center',
+    origin: 'Melen',
+    destination: 'Centre Ville',
+  },
+  {
+    name: 'Akwa -> Bastos',
+    description: 'Business district commuters',
+    origin: 'Akwa',
+    destination: 'Bastos',
+  },
+  {
+    name: 'University -> City Center',
+    description: 'Student commuters route',
+    origin: 'University',
+    destination: 'City Center',
+  },
+  {
+    name: 'Messamendongo -> Bonapriso',
+    description: 'Residential to business area',
+    origin: 'Messamendongo',
+    destination: 'Bonapriso',
+  },
+  {
+    name: 'Kotto -> Airport',
+    description: 'Airport shuttle route',
+    origin: 'Kotto',
+    destination: 'Airport',
+  },
+];
+
 function getConfig() {
   return {
     host: process.env.DB_HOST ,
-    user: process.env.DB_USER ,
-    password: process.env.DB_PASSWORD ,
-    port: Number(process.env.DB_PORT  ),
-    database: process.env.DB_NAME ,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    port: Number(process.env.DB_PORT),
+    database: process.env.DB_NAME,
     max: Number(process.env.DB_CONNECTION_LIMIT || 10),
   };
 }
@@ -61,6 +94,8 @@ async function initializeSchema(client) {
       END IF;
     END $$;
   `);
+
+  await seedDefaultCommunities(client);
 
   await client.query(`
     CREATE TABLE IF NOT EXISTS communities (
@@ -250,6 +285,25 @@ async function initializeSchema(client) {
         ON DELETE CASCADE
     )
   `);
+}
+
+async function seedDefaultCommunities(client) {
+  const { rows } = await client.query('SELECT COUNT(*)::int AS count FROM communities');
+  const existingCount = Number(rows[0]?.count || 0);
+
+  if (existingCount > 0) {
+    return;
+  }
+
+  for (const community of DEFAULT_COMMUNITIES) {
+    await client.query(
+      `
+        INSERT INTO communities (name, description, origin, destination)
+        VALUES ($1, $2, $3, $4)
+      `,
+      [community.name, community.description, community.origin, community.destination]
+    );
+  }
 }
 
 async function connectDB() {

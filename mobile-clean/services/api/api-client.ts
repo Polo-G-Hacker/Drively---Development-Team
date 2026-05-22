@@ -37,12 +37,21 @@ async function apiCall<T>(
       },
     });
 
-    const data = await response.json().catch(() => ({}));
+    const contentType = response.headers.get('content-type') || '';
+    let data: any = {};
+
+    if (contentType.includes('application/json')) {
+      data = await response.json().catch(() => ({}));
+    } else {
+      const text = await response.text().catch(() => '');
+      data = text ? { message: text } : {};
+    }
 
     if (response.ok) {
       return { success: true, data };
     } else {
-      return { success: false, error: data.error || data.message || 'API call failed' };
+      const fallbackMessage = `Request failed (${response.status} ${response.statusText})`;
+      return { success: false, error: data.error || data.message || fallbackMessage };
     }
   } catch (error) {
     console.error('API call error:', error);
@@ -229,6 +238,44 @@ export const driverAPI = {
 };
 
 /**
+ * Communities API
+ */
+export const communityAPI = {
+  getCommunities: async () => {
+    return apiCall<{ communities: Community[] }>(API_ENDPOINTS.COMMUNITIES.LIST, {
+      method: 'GET',
+    });
+  },
+
+  createCommunity: async (data: { origin: string; destination: string; description?: string | null }) => {
+    return apiCall<{ message: string; community: Community }>(API_ENDPOINTS.COMMUNITIES.CREATE, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  requestRide: async (communityId: string) => {
+    return apiCall<{
+      message: string;
+      community: Community;
+      driver: {
+        id: string;
+        name: string;
+        vehicleModel?: string;
+        vehiclePlate: string;
+        vehicleColor: string;
+        rating: number;
+      };
+      fare: number;
+      estimatedArrival: number;
+      distance: number;
+    }>(API_ENDPOINTS.COMMUNITIES.REQUEST_RIDE(communityId), {
+      method: 'POST',
+    });
+  },
+};
+
+/**
  * Passengers API
  */
 export const passengerAPI = {
@@ -259,13 +306,13 @@ export const passengerAPI = {
   },
 
   getCommunities: async () => {
-    return apiCall<Community[]>(API_ENDPOINTS.PASSENGERS.GET_COMMUNITIES, {
+    return apiCall<{ communities: Community[] }>(API_ENDPOINTS.PASSENGERS.GET_COMMUNITIES, {
       method: 'GET',
     });
   },
 
   joinCommunity: async (communityId: string) => {
-    return apiCall<Community>(API_ENDPOINTS.PASSENGERS.JOIN_COMMUNITY, {
+    return apiCall<{ message: string; community: Community }>(API_ENDPOINTS.PASSENGERS.JOIN_COMMUNITY, {
       method: 'POST',
       body: JSON.stringify({ communityId }),
     });

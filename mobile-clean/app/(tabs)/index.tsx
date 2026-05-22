@@ -430,6 +430,10 @@ const HomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#D7E7F6',
+  },
+  mapContainer: {
+    ...StyleSheet.absoluteFillObject,
   },
   header: {
     paddingTop: 60,

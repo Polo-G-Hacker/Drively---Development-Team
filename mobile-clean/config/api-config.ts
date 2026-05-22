@@ -132,6 +132,11 @@ export const API_ENDPOINTS = {
     GET_EARNINGS: '/drivers/earnings',
     GET_NEARBY: '/drivers/nearby',
   },
+  COMMUNITIES: {
+    LIST: '/communities',
+    CREATE: '/communities',
+    REQUEST_RIDE: (id: string) => `/communities/${id}/request-ride`,
+  },
   // Passengers
   PASSENGERS: {
     GET_PROFILE: '/passengers/profile',
