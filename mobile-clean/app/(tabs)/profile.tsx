@@ -485,18 +485,16 @@ const ProfileScreen = () => {
   const [passengerProfile, setPassengerProfile] = useState<User | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isEditVisible, setIsEditVisible] = useState(false);
-  const [isHistoryVisible, setIsHistoryVisible] = useState(false);
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isSupportVisible, setIsSupportVisible] = useState(false);
   const [isAboutVisible, setIsAboutVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isLoadingLatestRide, setIsLoadingLatestRide] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [historyError, setHistoryError] = useState<string | null>(null);
-  const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
-  const [rideHistory, setRideHistory] = useState<Ride[]>([]);
+  const [latestRideError, setLatestRideError] = useState<string | null>(null);
+  const [latestRide, setLatestRide] = useState<Ride | null>(null);
   const [form, setForm] = useState<EditProfileForm>(emptyForm);
   const [settingsForm, setSettingsForm] = useState<UserSettings>(defaultSettings);
   const [passwordForm, setPasswordForm] = useState<PasswordForm>(emptyPasswordForm);
@@ -539,19 +537,18 @@ const ProfileScreen = () => {
   const displayUser = (isDriver ? driverUser : passengerProfile) || user;
   const displayRating = driverUser?.rating ?? driverProfile?.rating ?? displayUser?.rating ?? 0;
   const displayProfileImage = displayUser?.profileImage || null;
-  const historyCountLabel = useMemo(() => {
-    if (isDriver) {
-      const total = driverProfile?.totalRides ?? rideHistory.length;
-      return `${total} rides recorded`;
-    }
-
-    if (hasLoadedHistory) {
-      return `${rideHistory.length} trips found`;
-    }
-
-    return 'See your completed and recent rides';
-  }, [driverProfile?.totalRides, hasLoadedHistory, isDriver, rideHistory.length]);
-  const latestRideLabel = rideHistory[0] ? getRideRouteLabel(rideHistory[0]) : 'No rides loaded yet';
+  const latestRideLabel = latestRide ? getRideRouteLabel(latestRide) : 'No ride activity yet';
+  const latestRideMeta = latestRide
+    ? `${formatStatusLabel(latestRide.status)} - ${formatRideDate(latestRide)}`
+    : latestRideError
+      ? latestRideError
+      : isLoadingLatestRide
+        ? 'Loading your latest ride activity...'
+        : isDriver
+          ? 'Your last accepted driver trip will appear here.'
+          : 'Your last booked ride will appear here.';
+  const latestRideSecondary = latestRide ? getRideSecondaryLabel(latestRide, isDriver) : null;
+  const latestRideStatusColor = latestRide ? statusColors[latestRide.status] || '#6B7280' : null;
   const settingsSummary = useMemo(() => {
     const summary = mergeSettings(displayUser?.settings);
     const labels: string[] = [];
@@ -602,35 +599,60 @@ const ProfileScreen = () => {
     setSettingsForm(mergeSettings(displayUser?.settings));
   }, [displayUser?.settings]);
 
-  const loadRideHistory = async (forceRefresh = false) => {
-    if (!user || isLoadingHistory || (hasLoadedHistory && !forceRefresh)) {
+  useEffect(() => {
+    if (!user) {
+      setLatestRide(null);
+      setLatestRideError(null);
+      setIsLoadingLatestRide(false);
       return;
     }
 
-    setIsLoadingHistory(true);
-    setHistoryError(null);
+    let isActive = true;
 
-    try {
-      const response = await rideAPI.getRideHistory();
+    const run = async () => {
+      setIsLoadingLatestRide(true);
+      setLatestRideError(null);
 
-      if (!response.success || !response.data?.rides) {
-        setHistoryError(response.error || 'Unable to load your ride history.');
-        return;
+      try {
+        const response = await rideAPI.getRideHistory();
+
+        if (!isActive) {
+          return;
+        }
+
+        if (!response.success || !response.data?.rides) {
+          setLatestRide(null);
+          setLatestRideError(response.error || 'Unable to load your latest ride activity.');
+          return;
+        }
+
+        setLatestRide(response.data.rides[0] || null);
+      } catch (error) {
+        console.error('Error loading latest ride activity:', error);
+
+        if (!isActive) {
+          return;
+        }
+
+        setLatestRide(null);
+        setLatestRideError('Unable to load your latest ride activity.');
+      } finally {
+        if (isActive) {
+          setIsLoadingLatestRide(false);
+        }
       }
+    };
 
-      setRideHistory(response.data.rides);
-      setHasLoadedHistory(true);
-    } catch (error) {
-      console.error('Error loading ride history:', error);
-      setHistoryError('Unable to load your ride history.');
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  };
+    void run();
 
-  const openRideHistory = async () => {
-    setIsHistoryVisible(true);
-    await loadRideHistory();
+    return () => {
+      isActive = false;
+    };
+  }, [user]);
+
+  const openTripsHistory = () => {
+    const jumpToken = Date.now();
+    router.push(`/trips?focus=recent&jump=${jumpToken}`);
   };
 
   const openEditProfile = () => {
@@ -1304,20 +1326,34 @@ const ProfileScreen = () => {
           <View style={[styles.historyHeaderRow, isCompactScreen && styles.historyHeaderRowCompact]}>
             <View style={styles.historyHeaderCopy}>
               <Text style={styles.cardTitle}>Ride Activity</Text>
-              <Text style={styles.historySummary}>{historyCountLabel}</Text>
+              <Text style={styles.historySummary}>Keep the profile card focused on your latest route.</Text>
             </View>
             <TouchableOpacity
               style={[styles.historyButton, isCompactScreen && styles.historyButtonCompact]}
-              onPress={() => {
-                void openRideHistory();
-              }}
+              onPress={openTripsHistory}
             >
               <Text style={styles.historyButtonText}>View history</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.historyPreviewRow}>
-            <Ionicons name="time-outline" size={18} color="#0066FF" />
-            <Text style={styles.historyPreviewText}>{latestRideLabel}</Text>
+            {isLoadingLatestRide ? (
+              <ActivityIndicator size="small" color="#0066FF" />
+            ) : (
+              <Ionicons name="time-outline" size={18} color="#0066FF" />
+            )}
+            <View style={styles.historyPreviewCopy}>
+              <Text style={styles.historyPreviewText}>{latestRideLabel}</Text>
+              <Text style={styles.historyPreviewMeta}>
+                {latestRideSecondary ? `${latestRideSecondary} - ${latestRideMeta}` : latestRideMeta}
+              </Text>
+            </View>
+            {latestRideStatusColor ? (
+              <View style={[styles.statusBadge, { backgroundColor: `${latestRideStatusColor}1A` }]}>
+                <Text style={[styles.statusBadgeText, { color: latestRideStatusColor }]}>
+                  {formatStatusLabel(latestRide.status)}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -1503,103 +1539,6 @@ const ProfileScreen = () => {
                     <Text style={styles.saveButtonText}>Save changes</Text>
                   )}
                 </TouchableOpacity>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
-
-      <Modal animationType="slide" visible={isHistoryVisible} transparent onRequestClose={() => setIsHistoryVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.modalWrapper}
-          >
-            <View style={styles.modalCard}>
-              <View style={[styles.modalHeader, isCompactScreen && styles.modalHeaderCompact]}>
-                <View style={styles.modalHeaderCopy}>
-                  <Text style={styles.modalTitle}>Ride History</Text>
-                  <Text style={styles.modalSubtitle}>
-                    {isDriver ? 'Review your completed and active driver trips.' : 'Review your recent rides and trip details.'}
-                  </Text>
-                </View>
-                <View style={[styles.historyModalActions, isCompactScreen && styles.historyModalActionsCompact]}>
-                  <TouchableOpacity
-                    style={styles.refreshIconButton}
-                    onPress={() => {
-                      void loadRideHistory(true);
-                    }}
-                  >
-                    <Ionicons name="refresh" size={20} color="#0066FF" />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.closeIconButton} onPress={() => setIsHistoryVisible(false)}>
-                    <Ionicons name="close" size={24} color="#666" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={styles.modalBody}>
-                {isLoadingHistory ? (
-                  <View style={styles.historyStateBlock}>
-                    <ActivityIndicator size="small" color="#0066FF" />
-                    <Text style={styles.loadingText}>Loading your ride history...</Text>
-                  </View>
-                ) : historyError ? (
-                  <View style={styles.historyStateCard}>
-                    <Text style={styles.historyStateTitle}>Could not load ride history</Text>
-                    <Text style={styles.historyStateText}>{historyError}</Text>
-                    <TouchableOpacity
-                      style={styles.secondaryButton}
-                      onPress={() => {
-                        void loadRideHistory(true);
-                      }}
-                    >
-                      <Text style={styles.secondaryButtonText}>Try again</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : rideHistory.length === 0 ? (
-                  <View style={styles.historyStateCard}>
-                    <Text style={styles.historyStateTitle}>No rides yet</Text>
-                    <Text style={styles.historyStateText}>
-                      {isDriver
-                        ? 'Accepted rides will show up here once you start taking trips.'
-                        : 'Your booked rides will appear here after you request or complete a trip.'}
-                    </Text>
-                  </View>
-                ) : (
-                  <ScrollView
-                    showsVerticalScrollIndicator={false}
-                    style={styles.modalScrollView}
-                    contentContainerStyle={styles.modalScrollContent}
-                  >
-                    {rideHistory.map((ride) => {
-                      const statusColor = statusColors[ride.status] || '#6B7280';
-
-                      return (
-                        <View key={ride.id} style={styles.rideCard}>
-                          <View style={[styles.rideCardHeader, isCompactScreen && styles.rideCardHeaderCompact]}>
-                            <Text style={styles.rideRoute}>{getRideRouteLabel(ride)}</Text>
-                            <View style={[styles.statusBadge, { backgroundColor: `${statusColor}1A` }]}>
-                              <Text style={[styles.statusBadgeText, { color: statusColor }]}>
-                                {formatStatusLabel(ride.status)}
-                              </Text>
-                            </View>
-                          </View>
-
-                          <Text style={styles.rideMeta}>{getRideSecondaryLabel(ride, isDriver)}</Text>
-                          <Text style={styles.rideMeta}>{formatRideDate(ride)}</Text>
-
-                          <View style={[styles.rideFooter, isCompactScreen && styles.rideFooterCompact]}>
-                            <Text style={styles.rideAmount}>{ride.totalFare ?? ride.fare ?? 0} FCFA</Text>
-                            <Text style={styles.ridePayment}>
-                              Payment: {ride.paymentStatus ? formatStatusLabel(ride.paymentStatus) : 'Pending'}
-                            </Text>
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </ScrollView>
-                )}
               </View>
             </View>
           </KeyboardAvoidingView>
@@ -2557,10 +2496,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  historyPreviewText: {
+  historyPreviewCopy: {
     flex: 1,
     marginLeft: 10,
+    marginRight: 10,
+  },
+  historyPreviewText: {
     color: '#374151',
+    fontWeight: '600',
+  },
+  historyPreviewMeta: {
+    marginTop: 4,
+    color: '#6B7280',
+    fontSize: 12,
+    lineHeight: 18,
   },
   menuContainer: {
     backgroundColor: '#FFFFFF',

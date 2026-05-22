@@ -46,3 +46,5 @@ android/
 
 # Build
 build/
+backend/node_modules/
+backend/.env
