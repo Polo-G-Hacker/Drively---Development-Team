@@ -16,7 +16,7 @@ import { useAuth } from '../../contexts/auth-context';
 import { passengerAPI, rideAPI } from '../../services/api/api-client';
 import { initializeSocket, listenForRideUpdates, removeRideListeners } from '../../services/socket/socket-client';
 import { useRouter } from 'expo-router';
-import { RideMap } from '../../components/ride-map';
+import { RideMap } from '@/components/ride-map.native';
 import type { RideLocation, RideMapRegion } from '../../components/ride-map.types';
 
 const HomeScreen = () => {
@@ -301,6 +301,16 @@ const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Drively</Text>
+        <TouchableOpacity
+          style={styles.profileButton}
+          onPress={() => router.push("/profile")}
+        >
+          <Ionicons name="person" size={22} color={"#2954ff"} />
+        </TouchableOpacity>
+      </View>
+
       <RideMap
         location={location}
         region={region}
@@ -321,10 +331,16 @@ const HomeScreen = () => {
 
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+          <Ionicons
+            name="search"
+            size={20}
+            color="#666"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Where to?"
+            placeholderTextColor="#0066FF"
             value={destination}
             onChangeText={setDestination}
           />
@@ -338,33 +354,33 @@ const HomeScreen = () => {
           <TouchableOpacity
             style={[
               styles.vehicleOption,
-              vehicleType === 'car' && styles.vehicleOptionActive,
+              vehicleType === "car" && styles.vehicleOptionActive,
             ]}
-            onPress={() => setVehicleType('car')}
+            onPress={() => setVehicleType("car")}
           >
             <Ionicons
               name="car"
               size={24}
-              color={vehicleType === 'car' ? '#0066FF' : '#666'}
+              color={vehicleType === "car" ? "#0066FF" : "#666"}
             />
             <Text style={styles.vehicleName}>Car</Text>
-            <Text style={styles.vehiclePrice}>{getVehiclePrice('car')}</Text>
+            <Text style={styles.vehiclePrice}>{getVehiclePrice("car")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[
               styles.vehicleOption,
-              vehicleType === 'bike' && styles.vehicleOptionActive,
+              vehicleType === "bike" && styles.vehicleOptionActive,
             ]}
-            onPress={() => setVehicleType('bike')}
+            onPress={() => setVehicleType("bike")}
           >
             <Ionicons
               name="bicycle"
               size={24}
-              color={vehicleType === 'bike' ? '#0066FF' : '#666'}
+              color={vehicleType === "bike" ? "#0066FF" : "#666"}
             />
             <Text style={styles.vehicleName}>Bike</Text>
-            <Text style={styles.vehiclePrice}>{getVehiclePrice('bike')}</Text>
+            <Text style={styles.vehiclePrice}>{getVehiclePrice("bike")}</Text>
           </TouchableOpacity>
         </View>
 
@@ -382,11 +398,15 @@ const HomeScreen = () => {
                   <Text style={styles.rideDetails}>
                     {match.vehiclePlate} • {match.vehicleColor}
                   </Text>
-                  <Text style={styles.rideDetails}>Rating: {match.rating} ⭐</Text>
+                  <Text style={styles.rideDetails}>
+                    Rating: {match.rating} ⭐
+                  </Text>
                 </View>
                 <View style={styles.ridePricing}>
                   <Text style={styles.rideFare}>{match.fare} FCFA</Text>
-                  <Text style={styles.rideEta}>{match.estimatedArrival} min</Text>
+                  <Text style={styles.rideEta}>
+                    {match.estimatedArrival} min
+                  </Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -399,7 +419,7 @@ const HomeScreen = () => {
           disabled={isSearching}
         >
           <Text style={styles.requestButtonText}>
-            {isSearching ? 'Searching...' : 'Request Ride'}
+            {isSearching ? "Searching..." : "Request Ride"}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -411,20 +431,40 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  header: {
+    paddingTop: 60,
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    backgroundColor: "#ffffff",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  title: { fontSize: 30, fontWeight: "700", color: "#0048ff" },
+
+  profileButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 34,
+    backgroundColor: "#ffffff",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#2954ff",
+  },
   searchContainer: {
-    position: 'absolute',
-    top: 50,
+    position: "absolute",
+    top: 130,
     left: 20,
     right: 20,
     zIndex: 1,
   },
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
     borderRadius: 10,
     padding: 15,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -434,60 +474,61 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   searchInput: {
+    color: "#000000",
     flex: 1,
     fontSize: 16,
   },
   bottomSheet: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
-    maxHeight: '50%',
+    maxHeight: "50%",
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 15,
   },
   vehicleOptions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 20,
   },
   vehicleOption: {
     flex: 1,
-    flexDirection: 'column',
-    alignItems: 'center',
+    flexDirection: "column",
+    alignItems: "center",
     padding: 15,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#E0E0E0',
+    borderColor: "#E0E0E0",
     marginHorizontal: 5,
   },
   vehicleOptionActive: {
-    borderColor: '#0066FF',
-    backgroundColor: '#F0F8FF',
+    borderColor: "#0066FF",
+    backgroundColor: "#F0F8FF",
   },
   vehicleName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     marginTop: 5,
   },
   vehiclePrice: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#0066FF',
+    fontWeight: "bold",
+    color: "#0066FF",
     marginTop: 5,
   },
   rideCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 15,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: "#F5F5F5",
     borderRadius: 10,
     marginBottom: 10,
   },
@@ -496,54 +537,54 @@ const styles = StyleSheet.create({
   },
   driverName: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   rideDetails: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginTop: 2,
   },
   ridePricing: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   rideFare: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#0066FF',
+    fontWeight: "bold",
+    color: "#0066FF",
   },
   rideEta: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   requestButton: {
-    backgroundColor: '#0066FF',
+    backgroundColor: "#0066FF",
     borderRadius: 10,
     padding: 15,
     marginTop: 10,
     marginBottom: 10,
   },
   requestButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
   },
   zoomButtonsContainer: {
-    position: 'absolute',
-    top: 120,
+    position: "absolute",
+    top: 200,
     right: 20,
-    flexDirection: 'column',
+    flexDirection: "column",
     gap: 10,
     zIndex: 1,
   },
   zoomButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 25,
     width: 50,
     height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,

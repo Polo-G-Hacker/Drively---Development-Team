@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/auth-context';
 import { passengerAPI } from '../../services/api/api-client';
+import { router } from 'expo-router';
 
 const CommunitiesScreen = () => {
   const [communities, setCommunities] = useState([]);
@@ -124,12 +125,19 @@ const CommunitiesScreen = () => {
   );
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Communities</Text>
-        <Text style={styles.headerSubtitle}>Join routes you travel frequently</Text>
-      </View>
+    
+    <View style={styles.container}>
+      <View style={styles.headermain}>
+              <Text style={styles.title}>Communities</Text>
+              <TouchableOpacity
+                style={styles.profileButton}
+                onPress={() => router.push("/profile")}
+              >
+                <Ionicons name="person" size={22} color={"#2954ff"} />
+              </TouchableOpacity>
+            </View>
 
+    <ScrollView style={styles.container}>
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
         <TextInput
@@ -212,33 +220,54 @@ const CommunitiesScreen = () => {
         </Text>
       </View>
     </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: "#F5F5F5",
   },
+  headermain: {
+    paddingTop: 60,
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    backgroundColor: "#ffffff",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  title: { fontSize: 30, fontWeight: "700", color: "#0048ff" },
+  profileButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 34,
+    backgroundColor: "#ffffff",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#2954ff",
+  },
+
   header: {
     padding: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     marginBottom: 15,
   },
   headerTitle: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#0066FF',
+    fontWeight: "bold",
+    color: "#0066FF",
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginTop: 5,
   },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
     margin: 15,
     borderRadius: 10,
     padding: 15,
@@ -256,32 +285,32 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     margin: 15,
     marginBottom: 10,
   },
   communityCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
     marginHorizontal: 15,
     marginBottom: 10,
     borderRadius: 15,
     padding: 15,
   },
   communityInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   communityIcon: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#F0F8FF',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F0F8FF",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 15,
   },
   communityDetails: {
@@ -289,68 +318,68 @@ const styles = StyleSheet.create({
   },
   communityName: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 5,
   },
   communityDescription: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginBottom: 5,
   },
   memberCount: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   memberText: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
     marginLeft: 5,
   },
   joinButton: {
-    backgroundColor: '#0066FF',
+    backgroundColor: "#0066FF",
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 8,
   },
   joinButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   leaveButton: {
-    backgroundColor: '#FF4444',
+    backgroundColor: "#FF4444",
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 8,
   },
   leaveButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   joinedBadge: {
-    backgroundColor: '#E0E0E0',
+    backgroundColor: "#E0E0E0",
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 8,
   },
   joinedText: {
-    color: '#666',
+    color: "#666",
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   infoCard: {
-    flexDirection: 'row',
-    backgroundColor: '#F0F8FF',
+    flexDirection: "row",
+    backgroundColor: "#F0F8FF",
     margin: 15,
     borderRadius: 15,
     padding: 15,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
   },
   infoText: {
     flex: 1,
     fontSize: 14,
-    color: '#333',
+    color: "#333",
     marginLeft: 10,
     lineHeight: 20,
   },
