@@ -16,7 +16,7 @@ import { useAuth } from '../../contexts/auth-context';
 import { passengerAPI, rideAPI } from '../../services/api/api-client';
 import { initializeSocket, listenForRideUpdates, removeRideListeners } from '../../services/socket/socket-client';
 import { useRouter } from 'expo-router';
-import { RideMap } from '@/components/ride-map.native';
+import { RideMap } from '@/components/ride-map';
 import type { RideLocation, RideMapRegion } from '../../components/ride-map.types';
 
 const HomeScreen = () => {
