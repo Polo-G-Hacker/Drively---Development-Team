@@ -8,18 +8,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "../contexts/auth-context";
 import { PasswordInput } from "../components/password-input";
-import LottieView from "lottie-react-native";
-import carAnimation from "../assets/car-movement.json";
+import AuthHeroCar from "../components/auth-hero-car";
 import { showFeedbackAlert } from "../utils/show-feedback-alert";
 
-const { width } = Dimensions.get("window");
-
 const LoginScreen = () => {
+  const { width } = useWindowDimensions();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -29,6 +27,9 @@ const LoginScreen = () => {
 
   const { login, register, user, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  const screenWidth = width > 0 ? width : 360;
+  const heroAnimationWidth = Math.min(screenWidth * 0.9, 360);
+  const heroAnimationHeight = Math.min(screenWidth * 0.45, 176);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -87,15 +88,15 @@ const LoginScreen = () => {
         {/* TOP SECTION: Branding & Illustration */}
         <View style={styles.topSection}>
           <Text style={styles.title}>DRIVE.LY</Text>
-          <Text style={styles.subtitle}>Move smart. Travel happier.</Text>
+          <Text style={styles.subtitle}>Move smart. Ride happier.</Text>
 
-          <View style={styles.illustrationContainer}>
-            <LottieView
-              source={carAnimation}
-              autoPlay
-              loop
-              style={styles.carAnimation}
-            />
+          <View
+            style={[
+              styles.illustrationContainer,
+              { width: heroAnimationWidth, height: heroAnimationHeight },
+            ]}
+          >
+            <AuthHeroCar width={heroAnimationWidth} />
           </View>
         </View>
 
@@ -106,7 +107,7 @@ const LoginScreen = () => {
               <Text style={styles.badgeText}>WELCOME</Text>
             </View>
             <Text style={styles.sheetSubtitle}>
-              Enter your details to jump right into your personalized travel
+              Enter your details to jump into your professional ride
               experience.
             </Text>
           </View>
@@ -249,13 +250,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
   },
   topSection: {
     paddingTop: Platform.OS === "ios" ? 70 : 50,
     paddingHorizontal: 24,
+    paddingBottom: 8,
     alignItems: "center",
-    flex: 1,
   },
   title: {
     fontSize: 28,
@@ -270,17 +271,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   illustrationContainer: {
-    width: width * 0.9,
-    height: width * 0.45,
     backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 30,
+    overflow: "hidden",
+    marginBottom: 4,
     marginTop: 10,
-  },
-  carAnimation: {
-    width: Math.min(width * 0.92, 360),
-    height: 200,
   },
   bottomSheet: {
     backgroundColor: "#FFFFFF",
